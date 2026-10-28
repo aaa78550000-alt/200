@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Copy, ExternalLink } from "lucide-react";
 import { useServices, useSession, useShop, useStaff } from "@/lib/hooks/queries";
+import { useAdapter } from "@/lib/db/context";
 import { ROLE_LABEL } from "@/lib/domain/status";
 import { formatNtd } from "@/lib/domain/money";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ export function MorePage() {
   const { data: session } = useSession();
   const { data: services, isLoading } = useServices();
   const { data: staff } = useStaff();
+  const adapter = useAdapter();
   const [copied, setCopied] = useState(false);
   const url = shop ? `${window.location.origin}/book/${shop.slug}` : "";
   return (
@@ -20,6 +22,11 @@ export function MorePage() {
       <section className="mt-5 border-t border-ink/80 pt-3">
         <h2 className="text-[15px] font-bold">{shop?.name}</h2>
         <p className="text-sm text-muted">{session ? `目前登入：${session.displayName}（${ROLE_LABEL[session.role]}）` : null}</p>
+        {adapter.signOut ? (
+          <Button size="sm" variant="ghost" className="mt-1 -ml-3" onClick={() => adapter.signOut!().then(() => window.location.assign("/login"))}>
+            登出
+          </Button>
+        ) : null}
       </section>
       <section className="mt-6">
         <h2 className="border-b border-ink/80 pb-1.5 text-[15px] font-bold">飼主線上預約網址</h2>

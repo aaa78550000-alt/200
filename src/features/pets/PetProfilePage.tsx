@@ -271,17 +271,43 @@ function Care({ p }: { p: PetDetail }) {
 }
 
 function Photos({ p }: { p: PetDetail }) {
+  const adapter = useAdapter();
+  const toast = useToast();
   const [cat, setCat] = useState<"all" | MediaCategory>("all");
   const [zoom, setZoom] = useState<PetDetail["media"][number] | null>(null);
+  const [uploadCat, setUploadCat] = useState<"before" | "after" | "care">("after");
+  const upload = usePetosMutation((file: File) => adapter.uploadPetMedia(p.id, file, uploadCat));
   const media = p.media.filter((m) => m.category !== "avatar" && (cat === "all" || m.category === cat));
   return (
     <div>
-      <Segmented<"all" | MediaCategory>
-        label="相片分類"
-        value={cat}
-        onChange={setCat}
-        options={[{ value: "all", label: "全部" }, { value: "before", label: "美容前" }, { value: "after", label: "美容後" }, { value: "care", label: "照護" }]}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Segmented<"all" | MediaCategory>
+          label="相片分類"
+          value={cat}
+          onChange={setCat}
+          options={[{ value: "all", label: "全部" }, { value: "before", label: "美容前" }, { value: "after", label: "美容後" }, { value: "care", label: "照護" }]}
+        />
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-y border-rule py-2">
+        <span className="text-sm text-muted">新增照片：</span>
+        <Segmented<"before" | "after" | "care"> label="上傳分類" value={uploadCat} onChange={setUploadCat} options={[{ value: "before", label: "美容前" }, { value: "after", label: "美容後" }, { value: "care", label: "照護" }]} />
+        <label className="inline-flex h-11 cursor-pointer items-center rounded-[var(--radius-control)] border border-border bg-surface px-4 text-[15px] font-medium hover:border-ink/30 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-primary">
+          {upload.isPending ? "上傳中…" : "選擇照片"}
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="sr-only"
+            data-testid="photo-input"
+            disabled={upload.isPending}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) upload.mutate(f, { onSuccess: () => toast("照片已上傳") });
+            }}
+          />
+        </label>
+      </div>
+      {upload.error ? <div className="mt-2"><ActionError error={upload.error} /></div> : null}
       {media.length ? (
         <ul className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
           {media.map((m) => (
@@ -298,7 +324,7 @@ function Photos({ p }: { p: PetDetail }) {
       ) : (
         <p className="py-6 text-muted">這個分類還沒有照片。</p>
       )}
-      <p className="mt-4 text-xs text-muted">DEMO 圖片為 AI 生成之虛構毛孩。正式版照片存於私有空間，只以短期授權連結顯示。</p>
+      <p className="mt-4 text-xs text-muted">{adapter.mode === "demo" ? "DEMO 圖片為 AI 生成之虛構毛孩；Demo 上傳只存在這個瀏覽器。" : "照片存於私有空間，只以 10 分鐘有效的授權連結顯示。"}</p>
       <Sheet open={!!zoom} onOpenChange={(o) => !o && setZoom(null)} title={zoom ? `${MEDIA_LABEL[zoom.category]} · ${formatDateShort(zoom.takenAt)}` : ""} side="center">
         {zoom ? (
           <figure>

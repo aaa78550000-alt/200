@@ -26,7 +26,9 @@ export type DomainErrorCode =
   | "SLOT_TAKEN"
   | "OTP_INVALID"
   | "NOT_FOUND"
-  | "VALIDATION";
+  | "VALIDATION"
+  | "UNAUTHENTICATED"
+  | "RATE_LIMITED";
 
 export class DomainError extends Error {
   constructor(
@@ -96,6 +98,10 @@ export interface PublicBookingInfo {
 export interface DataAdapter {
   mode: "demo" | "supabase";
   now(): string;
+  /** Notifies about changes made outside a mutation (e.g. a background worker) so the UI can refetch. */
+  subscribe?(listener: () => void): () => void;
+  signIn?(email: string, password: string): Promise<void>;
+  signOut?(): Promise<void>;
   getSession(): Promise<Session>;
   getShop(): Promise<Shop>;
   listStaff(): Promise<Staff[]>;
@@ -110,6 +116,7 @@ export interface DataAdapter {
   getPet(id: string): Promise<PetDetail>;
   getCustomer(id: string): Promise<Customer>;
   addWeight(petId: string, weightKg: number): Promise<void>;
+  uploadPetMedia(petId: string, file: File, category: "before" | "after" | "care", caption?: string): Promise<void>;
   addNote(petId: string, note: { category: PetNote["category"]; source: PetNote["source"]; body: string; severity: PetNote["severity"] }): Promise<void>;
 
   createAppointment(input: CreateAppointmentInput): Promise<Appointment>;

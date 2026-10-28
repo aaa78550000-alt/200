@@ -124,7 +124,7 @@ export function TodayPage() {
   ];
 
   return (
-    <div className="xl:grid xl:h-[calc(100dvh-36px)] xl:grid-cols-[minmax(0,1fr)_440px]">
+    <div className="xl:grid xl:h-[calc(100dvh-var(--topbar,0px))] xl:grid-cols-[minmax(0,1fr)_440px]">
       <div className="min-w-0 px-4 pb-10 lg:px-8 xl:overflow-y-auto">
         <header className="flex items-end justify-between gap-3 pt-4 lg:pt-7">
           <div>

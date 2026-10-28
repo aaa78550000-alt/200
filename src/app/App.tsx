@@ -13,23 +13,29 @@ import { CalendarPage } from "@/features/calendar/CalendarPage";
 import { AppointmentPage } from "@/features/appointments/AppointmentPage";
 import { BookingPage } from "@/features/booking/BookingPage";
 import { MorePage } from "@/features/more/MorePage";
+import { LoginPage } from "@/features/auth/LoginPage";
 
+// networkMode "always": TanStack Query would otherwise PAUSE mutations while offline and replay them silently
+// when the connection returns (e.g. a payment recorded minutes later). Offline attempts must fail visibly (E17).
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: false, refetchOnWindowFocus: false, staleTime: 5_000 },
-    mutations: { retry: false },
+    queries: { retry: false, refetchOnWindowFocus: false, staleTime: 5_000, networkMode: "always" },
+    mutations: { retry: false, networkMode: "always" },
   },
 });
 
 export function App() {
   const [adapter, setAdapter] = useState<DataAdapter | null>(null);
   useEffect(() => {
+    let unsub: (() => void)[] = [];
     createAdapter().then((a) => {
-      // Demo store changes made outside a mutation (e.g. the mock LINE worker) must refresh the UI.
-      const store = (a as DataAdapter & { store?: { subscribe(l: () => void): () => void } }).store;
-      store?.subscribe(() => queryClient.invalidateQueries());
+      // Changes made outside a mutation (e.g. the mock LINE worker) must refresh the UI.
+      const store = (a as DataAdapter & { store?: { subscribe(l: () => void): () => boolean } }).store;
+      const refresh = () => void queryClient.invalidateQueries();
+      unsub = [store?.subscribe(refresh), a.subscribe?.(refresh)].filter(Boolean).map((u) => () => void u!());
       setAdapter(a);
     });
+    return () => unsub.forEach((u) => u());
   }, []);
   if (!adapter) return null;
   return (
@@ -49,6 +55,7 @@ export function App() {
                 <Route path="more" element={<MorePage />} />
               </Route>
               <Route path="/book/:shopSlug" element={<BookingPage />} />
+              <Route path="/login" element={<LoginPage />} />
               <Route path="*" element={<Navigate to="/app/today" replace />} />
             </Routes>
           </BrowserRouter>

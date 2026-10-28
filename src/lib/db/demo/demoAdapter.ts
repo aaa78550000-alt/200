@@ -297,6 +297,22 @@ export function createDemoAdapter(store = new DemoStore()): DataAdapter & { stor
         db().weights.push({ id: id("w"), petId, weightKg: Math.round(weightKg * 10) / 10, measuredAt: tick(), recordedBy: session().displayName });
       }),
 
+    // DEMO: the image is kept as a data URL in this browser only (real uploads go to the private Storage bucket).
+    uploadPetMedia: async (petId, file, category, caption) => {
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new DomainError("VALIDATION", "只接受 JPG、PNG 或 WebP 圖片");
+      if (file.size > 5 * 1024 * 1024) throw new DomainError("VALIDATION", "圖片需小於 5MB");
+      const url = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result));
+        r.onerror = () => reject(new DomainError("VALIDATION", "讀取圖片失敗"));
+        r.readAsDataURL(file);
+      });
+      return write("service.progress", () => {
+        if (!db().pets.some((p) => p.id === petId)) throw new DomainError("NOT_FOUND", "找不到這隻毛孩");
+        db().media.push({ id: id("m"), petId, appointmentId: null, category, url, takenAt: tick(), caption: caption?.trim() || null });
+      });
+    },
+
     addNote: (petId, note) =>
       write("service.progress", () => {
         if (!db().pets.some((p) => p.id === petId)) throw new DomainError("NOT_FOUND", "找不到這隻毛孩");

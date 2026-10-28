@@ -5,10 +5,10 @@ export type DataMode = "demo" | "supabase";
 
 export const DATA_MODE: DataMode = (import.meta.env.VITE_DATA_MODE as DataMode) === "supabase" ? "supabase" : "demo";
 
-export async function createAdapter(): Promise<DataAdapter> {
-  if (DATA_MODE === "supabase") {
-    const { createSupabaseAdapter } = await import("./supabase/supabaseAdapter");
-    return createSupabaseAdapter();
-  }
-  return createDemoAdapter();
+let instance: Promise<DataAdapter> | null = null;
+
+/** Singleton: one Supabase/GoTrue client per page (StrictMode runs effects twice). */
+export function createAdapter(): Promise<DataAdapter> {
+  instance ??= DATA_MODE === "supabase" ? import("./supabase/supabaseAdapter").then((m) => m.createSupabaseAdapter()) : Promise.resolve(createDemoAdapter());
+  return instance;
 }

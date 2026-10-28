@@ -1,4 +1,6 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { Navigate, NavLink, Outlet } from "react-router-dom";
+import { DomainError } from "@/lib/db/adapter";
+import { useAdapter } from "@/lib/db/context";
 import { CalendarDays, ExternalLink, LayoutList, MoreHorizontal, PawPrint } from "lucide-react";
 import { useSession, useShop } from "@/lib/hooks/queries";
 import { ROLE_LABEL } from "@/lib/domain/status";
@@ -25,8 +27,10 @@ export function Wordmark({ className }: { className?: string }) {
 }
 
 export function AppShell() {
+  const adapter = useAdapter();
   const { data: shop } = useShop();
-  const { data: session } = useSession();
+  const { data: session, error: sessionError } = useSession();
+  if (sessionError instanceof DomainError && sessionError.code === "UNAUTHENTICATED") return <Navigate to="/login" replace />;
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[224px_minmax(0,1fr)]">
       <aside className="sticky top-0 hidden h-dvh flex-col border-r border-rule bg-canvas px-3 py-5 lg:flex">
@@ -58,6 +62,11 @@ export function AppShell() {
             <ExternalLink className="size-4" aria-hidden />
             飼主線上預約頁
           </a>
+          {adapter.signOut ? (
+            <button type="button" className="flex min-h-11 items-center text-sm text-muted hover:text-ink" onClick={() => adapter.signOut!().then(() => window.location.assign("/login"))}>
+              登出
+            </button>
+          ) : null}
         </div>
       </aside>
 
