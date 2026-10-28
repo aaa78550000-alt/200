@@ -1,4 +1,5 @@
 import type {
+  Role,
   Appointment,
   AppointmentEvent,
   AppointmentView,
@@ -26,7 +27,10 @@ export type DomainErrorCode =
   | "SLOT_TAKEN"
   | "OTP_INVALID"
   | "NOT_FOUND"
-  | "VALIDATION";
+  | "VALIDATION"
+  | "UNAUTHENTICATED"
+  | "RATE_LIMITED"
+  | "NO_SHOP";
 
 export class DomainError extends Error {
   constructor(
@@ -81,10 +85,66 @@ export interface BookingRequestInput {
   newCustomer?: { name: string; phone: string; petName: string; species: "dog" | "cat"; breed?: string; weightKg?: number | null };
 }
 
+export interface NewCustomerPetInput {
+  customerId?: string;
+  customerName?: string;
+  phone?: string;
+  petName: string;
+  species: "dog" | "cat";
+  breed?: string;
+  sex?: "male" | "female" | "unknown";
+  birthdate?: string | null;
+  weightKg?: number | null;
+}
+
+export interface AffectedAppointment {
+  id: string;
+  startsAt: string;
+  status: string;
+  petName: string;
+  customerName: string;
+  customerPhone: string;
+}
+
+export interface ServiceInput {
+  id?: string;
+  name: string;
+  description: string;
+  basePrice: number;
+  priceIsFrom: boolean;
+  durationMinutes: number;
+  bufferMinutes: number;
+  isAddon: boolean;
+  species: ("dog" | "cat")[];
+  onlineBookable: boolean;
+}
+
 export interface PublicBookingInfo {
   shop: Shop;
   services: Service[];
   groomers: { id: string; displayName: string }[];
+  /** 0 = Sunday … 6 = Saturday */
+  closedWeekdays: number[];
+  /** How returning customers prove their phone: LINE message, demo code, or not offered. */
+  returningVerification: "line" | "demo" | "none";
+  lineBasicId: string | null;
+}
+
+export interface LineStatus {
+  configured: boolean;
+  basicId: string | null;
+  linkedCustomers: number;
+  /** URL to paste into LINE Developers → Messaging API → Webhook URL (null in demo) */
+  webhookUrl: string | null;
+}
+
+export interface StaffAccount {
+  userId: string;
+  displayName: string;
+  email: string | null;
+  role: Role;
+  active: boolean;
+  isGroomer: boolean;
 }
 
 /**
@@ -94,6 +154,10 @@ export interface PublicBookingInfo {
 export interface DataAdapter {
   mode: "demo" | "supabase";
   now(): string;
+  /** Notifies about changes made outside a mutation (e.g. a background worker) so the UI can refetch. */
+  subscribe?(listener: () => void): () => void;
+  signIn?(email: string, password: string): Promise<void>;
+  signOut?(): Promise<void>;
   getSession(): Promise<Session>;
   getShop(): Promise<Shop>;
   listStaff(): Promise<Staff[]>;
@@ -108,7 +172,32 @@ export interface DataAdapter {
   getPet(id: string): Promise<PetDetail>;
   getCustomer(id: string): Promise<Customer>;
   addWeight(petId: string, weightKg: number): Promise<void>;
+  uploadPetMedia(petId: string, file: File, category: "before" | "after" | "care", caption?: string): Promise<void>;
   addNote(petId: string, note: { category: PetNote["category"]; source: PetNote["source"]; body: string; severity: PetNote["severity"] }): Promise<void>;
+
+  createCustomerPet(input: NewCustomerPetInput): Promise<{ petId: string; customerId: string }>;
+  findCustomerByPhone(phone: string): Promise<Customer | null>;
+
+  saveService(input: ServiceInput): Promise<void>;
+  archiveService(id: string): Promise<void>;
+  setOperatingHours(hours: { weekday: number; opens: string | null; closes: string | null }[]): Promise<void>;
+  setStaffServices(staffId: string, serviceIds: string[]): Promise<void>;
+  addTimeOff(input: { staffId: string; startsAt: string; endsAt: string; reason: string }): Promise<AffectedAppointment[]>;
+  deleteTimeOff(id: string): Promise<void>;
+
+  getLineStatus(): Promise<LineStatus>;
+  setLineChannel(input: { secret: string; token: string; basicId: string }): Promise<void>;
+  clearLineChannel(): Promise<void>;
+  createLinkCode(customerId: string): Promise<{ code: string; basicId: string; expiresAt: string }>;
+  getPublicLinkCode(slug: string, appointmentId: string, clientRequestId: string): Promise<{ available: boolean; linked?: boolean; basicId?: string; code?: string }>;
+
+  listStaffAccounts(): Promise<StaffAccount[]>;
+  createStaffAccount(input: { email: string; password: string; displayName: string; role: Exclude<Role, "owner">; isGroomer: boolean }): Promise<void>;
+  setStaffActive(userId: string, active: boolean): Promise<void>;
+  resetStaffPassword(userId: string, password: string): Promise<void>;
+
+  signUp?(email: string, password: string): Promise<void>;
+  createShop?(input: { name: string; slug: string; displayName: string; isGroomer: boolean }): Promise<void>;
 
   createAppointment(input: CreateAppointmentInput): Promise<Appointment>;
   confirmAppointment(id: string, version: number, staffId?: string): Promise<Appointment>;
@@ -126,7 +215,7 @@ export interface DataAdapter {
 
   getPublicBooking(slug: string): Promise<PublicBookingInfo>;
   getPublicSlots(slug: string, date: string, serviceId: string, staffId: string | null): Promise<Slot[]>;
-  requestOtp(slug: string, phone: string): Promise<{ sent: boolean; demoCode?: string }>;
+  requestOtp(slug: string, phone: string): Promise<{ sent: boolean; channel?: "line" | "demo"; demoCode?: string }>;
   verifyOtp(slug: string, phone: string, code: string): Promise<{ token: string; customerName: string; pets: { id: string; name: string; breed: string | null; photoUrl: string | null }[] }>;
   submitBookingRequest(input: BookingRequestInput): Promise<{ appointmentId: string; status: "pending"; duplicate: boolean }>;
 }

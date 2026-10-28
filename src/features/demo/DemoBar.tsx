@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { FlaskConical } from "lucide-react";
 import { useAdapter } from "@/lib/db/context";
@@ -40,6 +40,14 @@ export function DemoBar() {
     () => (store ? `${JSON.stringify(store.settings)}|${store.db.clockOffsetMin}` : ""),
   );
   const settings = store?.settings;
+  // Full-height layouts subtract this bar's height.
+  useEffect(() => {
+    if (!store) return;
+    document.documentElement.style.setProperty("--topbar", "36px");
+    return () => {
+      document.documentElement.style.removeProperty("--topbar");
+    };
+  }, [store]);
   if (!store || !settings) return null;
   const now = adapter.now();
   const set = (patch: Parameters<DemoStore["update"]>[0]) => {

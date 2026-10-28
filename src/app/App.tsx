@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, MemoryRouter, Navigate, Route, Routes } from "react-router-dom";
+import type { ReactNode } from "react";
+import { EMBEDDED } from "@/lib/env";
+import { BASE_PATH } from "@/lib/paths";
 import { AdapterContext } from "@/lib/db/context";
 import { createAdapter } from "@/lib/db";
 import type { DataAdapter } from "@/lib/db/adapter";
@@ -13,30 +16,41 @@ import { CalendarPage } from "@/features/calendar/CalendarPage";
 import { AppointmentPage } from "@/features/appointments/AppointmentPage";
 import { BookingPage } from "@/features/booking/BookingPage";
 import { MorePage } from "@/features/more/MorePage";
+import { LoginPage } from "@/features/auth/LoginPage";
+import { OnboardingPage } from "@/features/auth/OnboardingPage";
 
+// networkMode "always": TanStack Query would otherwise PAUSE mutations while offline and replay them silently
+// when the connection returns (e.g. a payment recorded minutes later). Offline attempts must fail visibly (E17).
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: false, refetchOnWindowFocus: false, staleTime: 5_000 },
-    mutations: { retry: false },
+    queries: { retry: false, refetchOnWindowFocus: false, staleTime: 5_000, networkMode: "always" },
+    mutations: { retry: false, networkMode: "always" },
   },
 });
+
+function Router({ children }: { children: ReactNode }) {
+  return EMBEDDED ? <MemoryRouter initialEntries={["/app/today"]}>{children}</MemoryRouter> : <BrowserRouter basename={BASE_PATH || undefined}>{children}</BrowserRouter>;
+}
 
 export function App() {
   const [adapter, setAdapter] = useState<DataAdapter | null>(null);
   useEffect(() => {
+    let unsub: (() => void)[] = [];
     createAdapter().then((a) => {
-      // Demo store changes made outside a mutation (e.g. the mock LINE worker) must refresh the UI.
-      const store = (a as DataAdapter & { store?: { subscribe(l: () => void): () => void } }).store;
-      store?.subscribe(() => queryClient.invalidateQueries({ queryKey: ["petos"] }));
+      // Changes made outside a mutation (e.g. the mock LINE worker) must refresh the UI.
+      const store = (a as DataAdapter & { store?: { subscribe(l: () => void): () => boolean } }).store;
+      const refresh = () => void queryClient.invalidateQueries();
+      unsub = [store?.subscribe(refresh), a.subscribe?.(refresh)].filter(Boolean).map((u) => () => void u!());
       setAdapter(a);
     });
+    return () => unsub.forEach((u) => u());
   }, []);
   if (!adapter) return null;
   return (
     <AdapterContext.Provider value={adapter}>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          <BrowserRouter>
+          <Router>
             <Routes>
               <Route path="/" element={<Navigate to="/app/today" replace />} />
               <Route path="/app" element={<AppShell />}>
@@ -49,9 +63,12 @@ export function App() {
                 <Route path="more" element={<MorePage />} />
               </Route>
               <Route path="/book/:shopSlug" element={<BookingPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<OnboardingPage mode="signup" />} />
+              <Route path="/onboarding" element={<OnboardingPage mode="shop" />} />
               <Route path="*" element={<Navigate to="/app/today" replace />} />
             </Routes>
-          </BrowserRouter>
+          </Router>
         </ToastProvider>
       </QueryClientProvider>
     </AdapterContext.Provider>

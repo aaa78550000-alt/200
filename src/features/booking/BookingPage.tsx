@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
+import { EMBEDDED } from "@/lib/env";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Check, Clock, MapPin, Phone } from "lucide-react";
 import { useAdapter } from "@/lib/db/context";
@@ -55,7 +56,7 @@ export function BookingPage() {
   const info = useQuery({ queryKey: ["public", shopSlug], queryFn: () => adapter.getPublicBooking(shopSlug) });
   const [d, setD] = useState<Draft>(() => loadDraft(shopSlug));
   const [verified, setVerified] = useState<null | { token: string; customerName: string; pets: { id: string; name: string; breed: string | null; photoUrl: string | null }[] }>(null);
-  const [result, setResult] = useState<null | { duplicate: boolean }>(null);
+  const [result, setResult] = useState<null | { duplicate: boolean; appointmentId: string; requestId: string }>(null);
   const [slotTaken, setSlotTaken] = useState<string | null>(null);
   const today = dateOf(adapter.now());
   const set = (patch: Partial<Draft>) => setD((x) => ({ ...x, ...patch }));
@@ -88,7 +89,7 @@ export function BookingPage() {
           : { newCustomer: { name: d.name, phone: d.phone, petName: d.petName, species: d.species, breed: d.breed, weightKg: d.weight ? Number(d.weight) : null } }),
       }),
     onSuccess: (r) => {
-      setResult({ duplicate: r.duplicate });
+      setResult({ duplicate: r.duplicate, appointmentId: r.appointmentId, requestId: d.requestId });
       try {
         sessionStorage.removeItem(DRAFT_KEY(shopSlug));
       } catch {
@@ -164,8 +165,9 @@ export function BookingPage() {
           </div>
           <h1 className="mt-4 text-2xl font-bold leading-8">已收到申請，等待店家確認</h1>
           <p className="mt-2 text-[15px] text-ink/85">
-            這是<strong>預約申請</strong>，時段尚未保留。{shop.name}確認後會用 LINE 或電話通知你；若時段無法安排，店家會與你另約時間。
+            這是<strong>預約申請</strong>，時段尚未保留。{shop.name}確認後會通知你；若時段無法安排，店家會與你另約時間。
           </p>
+          <LineLinkCard slug={shopSlug} appointmentId={result.appointmentId} requestId={result.requestId} />
           {result.duplicate ? <p className="mt-2 text-sm text-muted">（這份申請先前已送出過，沒有重複建立。）</p> : null}
           <div className="mt-6 border-y border-rule py-4">{summary}</div>
           <p className="mt-4 text-sm text-muted">
@@ -183,6 +185,11 @@ export function BookingPage() {
       <DemoBar />
       <header className="border-b border-rule bg-surface">
         <div className="mx-auto max-w-[1040px] px-4 py-4 lg:px-8 lg:py-6">
+          {EMBEDDED ? (
+            <Link to="/app/today" className="mb-2 inline-flex min-h-9 items-center text-sm text-primary hover:underline">
+              ← 回到店家後台（這是飼主看到的畫面）
+            </Link>
+          ) : null}
           <p className="text-xl font-bold leading-7 lg:text-2xl">{shop.name}</p>
           <p className="mt-1 flex flex-wrap gap-x-4 text-sm text-muted">
             <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden />{shop.address}</span>
@@ -243,10 +250,10 @@ export function BookingPage() {
           ) : null}
 
           {d.step === 2 && service ? (
-            <SlotStep shopSlug={shopSlug} today={today} draft={d} set={set} groomers={info.data.groomers} serviceId={service.id} slotTaken={slotTaken} clearTaken={() => setSlotTaken(null)} />
+            <SlotStep shopSlug={shopSlug} today={today} draft={d} set={set} groomers={info.data.groomers} closedWeekdays={info.data.closedWeekdays} serviceId={service.id} slotTaken={slotTaken} clearTaken={() => setSlotTaken(null)} />
           ) : null}
 
-          {d.step === 3 ? <IdentityStep shopSlug={shopSlug} draft={d} set={set} verified={verified} setVerified={setVerified} speciesAllowed={service?.species ?? ["dog"]} /> : null}
+          {d.step === 3 ? <IdentityStep shopSlug={shopSlug} draft={d} set={set} verified={verified} setVerified={setVerified} speciesAllowed={service?.species ?? ["dog"]} verification={info.data.returningVerification} /> : null}
 
           {d.step === 4 ? (
             <section aria-labelledby="s4">
@@ -312,7 +319,7 @@ export function BookingPage() {
   );
 }
 
-function SlotStep({ shopSlug, today, draft: d, set, groomers, serviceId, slotTaken, clearTaken }: { shopSlug: string; today: string; draft: Draft; set: (p: Partial<Draft>) => void; groomers: { id: string; displayName: string }[]; serviceId: string; slotTaken: string | null; clearTaken: () => void }) {
+function SlotStep({ shopSlug, today, draft: d, set, groomers, closedWeekdays, serviceId, slotTaken, clearTaken }: { shopSlug: string; today: string; draft: Draft; set: (p: Partial<Draft>) => void; groomers: { id: string; displayName: string }[]; closedWeekdays: number[]; serviceId: string; slotTaken: string | null; clearTaken: () => void }) {
   const adapter = useAdapter();
   const days = useMemo(() => Array.from({ length: 14 }, (_, i) => addDays(today, i)), [today]);
   const date = d.date ?? today;
@@ -336,13 +343,16 @@ function SlotStep({ shopSlug, today, draft: d, set, groomers, serviceId, slotTak
         <Segmented label="美容師" value={d.staffId ?? "any"} onChange={(v) => set({ staffId: v === "any" ? null : v, startsAt: null })} options={[{ value: "any", label: "不指定" }, ...groomers.map((g) => ({ value: g.id, label: g.displayName }))]} />
       </div>
       <div className="-mx-4 mt-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" role="tablist" aria-label="日期">
-        {days.map((day) => (
-          <button key={day} role="tab" aria-selected={day === date} onClick={() => set({ date: day, startsAt: null })} className={cn("flex h-16 min-w-[52px] flex-col items-center justify-center rounded-[var(--radius-control)] border", day === date ? "border-ink bg-ink text-white" : "border-border bg-surface")}>
-            <span className="text-xs">{day === today ? "今天" : weekdayLabel(day).slice(1)}</span>
-            <span className="num text-[17px] font-bold leading-6">{Number(day.slice(8))}</span>
-            <span className={cn("text-[11px] leading-3", day === date ? "text-white/70" : "text-muted")}>{Number(day.slice(5, 7))}月</span>
-          </button>
-        ))}
+        {days.map((day) => {
+          const closed = closedWeekdays.includes(taipeiParts(taipeiIso(day, "12:00")).weekday);
+          return (
+            <button key={day} role="tab" aria-selected={day === date} disabled={closed} aria-label={closed ? `${formatDateLong(day)} 店休` : undefined} onClick={() => set({ date: day, startsAt: null })} className={cn("flex h-16 min-w-[52px] flex-col items-center justify-center rounded-[var(--radius-control)] border", day === date ? "border-ink bg-ink text-white" : closed ? "hatch border-border text-muted" : "border-border bg-surface")}>
+              <span className="text-xs">{day === today ? "今天" : weekdayLabel(day).slice(1)}</span>
+              <span className="num text-[17px] font-bold leading-6">{Number(day.slice(8))}</span>
+              <span className={cn("text-[11px] leading-3", day === date ? "text-white/70" : "text-muted")}>{closed ? "店休" : `${Number(day.slice(5, 7))}月`}</span>
+            </button>
+          );
+        })}
       </div>
       <div className="mt-5" data-testid="slot-list">
         {slots.isLoading ? (
@@ -380,7 +390,7 @@ function SlotStep({ shopSlug, today, draft: d, set, groomers, serviceId, slotTak
   );
 }
 
-function IdentityStep({ shopSlug, draft: d, set, verified, setVerified, speciesAllowed }: { shopSlug: string; draft: Draft; set: (p: Partial<Draft>) => void; verified: { token: string; customerName: string; pets: { id: string; name: string; breed: string | null; photoUrl: string | null }[] } | null; setVerified: (v: { token: string; customerName: string; pets: { id: string; name: string; breed: string | null; photoUrl: string | null }[] } | null) => void; speciesAllowed: ("dog" | "cat" | "other")[] }) {
+function IdentityStep({ shopSlug, draft: d, set, verified, setVerified, speciesAllowed, verification }: { verification: "line" | "demo" | "none"; shopSlug: string; draft: Draft; set: (p: Partial<Draft>) => void; verified: { token: string; customerName: string; pets: { id: string; name: string; breed: string | null; photoUrl: string | null }[] } | null; setVerified: (v: { token: string; customerName: string; pets: { id: string; name: string; breed: string | null; photoUrl: string | null }[] } | null) => void; speciesAllowed: ("dog" | "cat" | "other")[] }) {
   const adapter = useAdapter();
   const [code, setCode] = useState("");
   const [touched, setTouched] = useState(false);
@@ -396,7 +406,7 @@ function IdentityStep({ shopSlug, draft: d, set, verified, setVerified, speciesA
     <section aria-labelledby="s3">
       <h1 id="s3" className="text-2xl font-bold leading-8">毛孩與聯絡資料</h1>
       <div className="mt-4">
-        <Segmented<"new" | "returning"> label="是否來過" value={d.identity} onChange={(v) => { set({ identity: v }); setVerified(null); otp.reset(); verify.reset(); }} options={[{ value: "new", label: "第一次來" }, { value: "returning", label: "我來過（手機驗證）" }]} />
+        <Segmented<"new" | "returning"> label="是否來過" value={d.identity} onChange={(v) => { set({ identity: v }); setVerified(null); otp.reset(); verify.reset(); }} options={verification === "none" ? [{ value: "new", label: "填寫資料" }] : [{ value: "new", label: "第一次來" }, { value: "returning", label: verification === "line" ? "我來過（LINE 驗證）" : "我來過（手機驗證）" }]} />
       </div>
 
       {d.identity === "returning" ? (
@@ -413,7 +423,7 @@ function IdentityStep({ shopSlug, draft: d, set, verified, setVerified, speciesA
                 </div>
               </Field>
               {otp.isSuccess ? (
-                <Field label="驗證碼" htmlFor="otp" hint={otp.data.demoCode ? `DEMO：驗證碼固定為 ${otp.data.demoCode}（正式版以簡訊寄送）` : "已傳送簡訊驗證碼"}>
+                <Field label="驗證碼" htmlFor="otp" hint={otp.data.demoCode ? `DEMO：驗證碼固定為 ${otp.data.demoCode}` : "若這支手機已綁定店家 LINE，驗證碼已傳到你的 LINE（10 分鐘內有效）"}>
                   <div className="flex gap-2">
                     <Input id="otp" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} className="num tracking-[0.3em]" />
                     <Button type="button" variant="primary" disabled={code.length !== 6} loading={verify.isPending} onClick={() => verify.mutate()}>
@@ -478,5 +488,20 @@ function IdentityStep({ shopSlug, draft: d, set, verified, setVerified, speciesA
         </Field>
       </div>
     </section>
+  );
+}
+
+/** After a request: offer the customer the shop's LINE account + one-time code so confirmations reach them. */
+function LineLinkCard({ slug, appointmentId, requestId }: { slug: string; appointmentId: string; requestId: string }) {
+  const adapter = useAdapter();
+  const q = useQuery({ queryKey: ["public", slug, "link", appointmentId], queryFn: () => adapter.getPublicLinkCode(slug, appointmentId, requestId), retry: false });
+  if (!q.data?.available) return null;
+  if (q.data.linked) return <p className="mt-4 text-[15px] text-success-ink">你的 LINE 已綁定，確認通知會傳到 LINE。</p>;
+  return (
+    <div className="mt-5 border-l-[3px] border-primary bg-primary-tint/60 px-4 py-3" data-testid="booking-line-code">
+      <p className="text-[15px]">想用 LINE 收到確認與接回通知？請加入 <span className="font-semibold">{q.data.basicId}</span> 好友，並傳送綁定碼：</p>
+      <p className="num mt-1 text-3xl font-bold tracking-[0.2em]">{q.data.code}</p>
+      <p className="mt-1 text-sm text-muted">7 天內有效。之後預約可用「我來過（LINE 驗證）」快速帶入毛孩資料。</p>
+    </div>
   );
 }

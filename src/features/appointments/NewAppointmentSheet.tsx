@@ -7,12 +7,13 @@ import { formatNtd } from "@/lib/domain/money";
 import { taipeiIso } from "@/lib/domain/time";
 import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Segmented } from "@/components/ui/field";
+import { Field, Input, Segmented, TimeSelect } from "@/components/ui/field";
 import { ActionError } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { PetAvatar } from "@/components/pet/PetAvatar";
 import { WeightLine } from "@/components/pet/WeightLine";
 import { cn } from "@/lib/cn";
+import { NewPetForm } from "@/features/pets/NewPetForm";
 
 export interface NewAppointmentPreset {
   petId?: string;
@@ -37,6 +38,7 @@ function NewAppointmentForm({ preset, onCreated }: { preset: NewAppointmentPrese
   const adapter = useAdapter();
   const toast = useToast();
   const [query, setQuery] = useState("");
+  const [addingPet, setAddingPet] = useState(false);
   const [petId, setPetId] = useState<string | null>(preset.petId ?? null);
   const [serviceId, setServiceId] = useState<string | null>(null);
   const [addons, setAddons] = useState<string[]>([]);
@@ -91,6 +93,10 @@ function NewAppointmentForm({ preset, onCreated }: { preset: NewAppointmentPrese
               更換
             </Button>
           </div>
+        ) : addingPet ? (
+          <div className="border border-border p-3">
+            <NewPetForm onCreated={(id) => { setAddingPet(false); setQuery(""); setPetId(id); }} onCancel={() => setAddingPet(false)} />
+          </div>
         ) : (
           <div className="space-y-2">
             <div className="relative">
@@ -111,6 +117,9 @@ function NewAppointmentForm({ preset, onCreated }: { preset: NewAppointmentPrese
               ))}
               {pets.data && !pets.data.length ? <li className="py-4 text-center text-sm text-muted">找不到符合的毛孩</li> : null}
             </ul>
+            <Button type="button" variant="quiet" size="sm" onClick={() => setAddingPet(true)} data-testid="add-new-pet">
+              ＋ 新飼主／新毛孩
+            </Button>
           </div>
         )}
       </Field>
@@ -140,7 +149,7 @@ function NewAppointmentForm({ preset, onCreated }: { preset: NewAppointmentPrese
           <Input id="na-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
         <Field label="開始時間" htmlFor="na-time">
-          <Input id="na-time" type="time" step={900} value={time} onChange={(e) => setTime(e.target.value)} className="num" />
+          <TimeSelect id="na-time" step={15} value={time} onChange={setTime} className="w-full" />
         </Field>
       </div>
 

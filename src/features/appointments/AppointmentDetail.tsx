@@ -11,7 +11,7 @@ import { PetAvatar } from "@/components/pet/PetAvatar";
 import { AttentionList } from "@/components/pet/AttentionList";
 import { NotificationText, PaymentText, StatusLabel } from "@/components/appointment/StatusLabel";
 import { Button } from "@/components/ui/button";
-import { ActionError, ErrorState, Skeleton } from "@/components/ui/states";
+import { ActionError, ErrorState, Skeleton, StaleNotice } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { FinishReview } from "./FinishReview";
 import { PaymentSection } from "./PaymentSection";
@@ -60,7 +60,7 @@ export function AppointmentDetail({ id, onDone, initialAction }: { id: string; o
   const { data: session } = useSession();
   const [mode, setMode] = useState<Mode>(initialAction === "finish" ? "finish" : "idle");
 
-  if (q.isLoading)
+  if (q.isLoading && !q.data)
     return (
       <div className="space-y-4 p-1" role="status" aria-label="載入預約">
         <div className="flex gap-3">
@@ -74,13 +74,14 @@ export function AppointmentDetail({ id, onDone, initialAction }: { id: string; o
         <Skeleton className="h-24 w-full" />
       </div>
     );
-  if (q.error || !q.data) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
+  if (!q.data) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
   const a = q.data;
   const role = session?.role ?? "groomer";
   const showFinance = can(role, "finance.view");
 
   return (
     <article data-testid="appointment-detail" data-status={a.status} aria-label={`${a.pet.name} 的預約`}>
+      <StaleNotice error={q.error} onRetry={() => q.refetch()} />
       {/* Identity — who is this, whose is it */}
       <header className="flex items-start gap-3">
         <PetAvatar src={a.pet.photoUrl} name={a.pet.name} size={52} />
@@ -92,9 +93,9 @@ export function AppointmentDetail({ id, onDone, initialAction }: { id: string; o
             </Link>
             <StatusLabel status={a.status} />
           </div>
-          <p className="truncate text-sm text-muted">
-            {a.pet.breed ?? "品種未填"} · 飼主 {a.customer.name}
-            <a href={`tel:${a.customer.phone}`} className="ml-2 inline-flex items-center gap-1 text-primary hover:underline">
+          <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted">
+            <span>{a.pet.breed ?? "品種未填"} · 飼主 {a.customer.name}</span>
+            <a href={`tel:${a.customer.phone}`} className="inline-flex min-h-8 items-center gap-1 text-primary hover:underline">
               <Phone className="size-3.5" aria-hidden />
               <span className="num">{a.customer.phone}</span>
             </a>
@@ -230,7 +231,8 @@ function NotificationList({ a }: { a: Detail }) {
         <li key={n.id} className="flex flex-wrap items-center gap-x-2">
           <span>{KIND[n.kind]}</span>
           <NotificationText status={n.status} />
-          <span className="text-xs text-muted">LINE 模擬</span>
+          {n.channel === "line_mock" ? <span className="text-xs text-muted">LINE 模擬（Demo）</span> : null}
+          {n.lastError && n.status !== "sent" ? <span className="w-full text-xs text-muted">{n.lastError}</span> : null}
           {n.status === "failed" ? (
             <Button size="sm" variant="quiet" className="-my-1 h-8" loading={retry.isPending} onClick={() => retry.mutate(n.id)}>
               <RotateCw className="size-3.5" aria-hidden />

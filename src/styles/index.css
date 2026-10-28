@@ -1,6 +1,4 @@
 @import "tailwindcss";
-@import "@fontsource-variable/noto-sans-tc";
-@import "@fontsource-variable/geist";
 
 /*
  * PetOS design tokens — see docs/DESIGN_TOKENS.md & docs/DESIGN_EXPLORATION.md §5.
@@ -23,6 +21,10 @@
   --danger-tint: #f8e9e8;
   --success: #318264;
   --success-tint: #e6f2ec;
+  /* text on tinted status backgrounds (≥ 4.5:1, see DESIGN_EXPLORATION §5) */
+  --primary-ink: #206c65;
+  --success-ink: #26694f;
+  --danger-ink: #9e3b3b;
 }
 
 @theme {
@@ -42,9 +44,12 @@
   --color-danger-tint: var(--danger-tint);
   --color-success: var(--success);
   --color-success-tint: var(--success-tint);
+  --color-primary-ink: var(--primary-ink);
+  --color-success-ink: var(--success-ink);
+  --color-danger-ink: var(--danger-ink);
 
-  --font-sans: "Geist Variable", "Noto Sans TC Variable", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
-  --font-num: "Geist Variable", ui-monospace, sans-serif;
+  --font-sans: "Geist Variable", "Geist", "Noto Sans TC Variable", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --font-num: "Geist Variable", "Geist", ui-monospace, sans-serif;
 
   --radius-card: 12px;
   --radius-sheet: 16px;

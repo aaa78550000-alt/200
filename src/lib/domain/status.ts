@@ -51,7 +51,7 @@ export const NOTIFICATION_LABEL: Record<NotificationStatus, string> = {
   queued: "排隊中",
   sent: "已送出",
   failed: "送出失敗",
-  not_applicable: "不需通知",
+  not_applicable: "未發送",
 };
 
 /** Progress rail shown in the appointment detail (cancel/no-show are off-rail). */
@@ -66,16 +66,17 @@ export type Capability =
   | "payment.record"
   | "payment.refund"
   | "handover.unpaid_authorize"
-  | "finance.view";
+  | "finance.view"
+  | "settings.manage";
 
 const CAPS: Record<Role, Capability[]> = {
   owner: [
     "appointment.confirm", "appointment.create", "appointment.cancel", "appointment.reschedule",
-    "service.progress", "payment.record", "payment.refund", "handover.unpaid_authorize", "finance.view",
+    "service.progress", "payment.record", "payment.refund", "handover.unpaid_authorize", "finance.view", "settings.manage",
   ],
   manager: [
     "appointment.confirm", "appointment.create", "appointment.cancel", "appointment.reschedule",
-    "service.progress", "payment.record", "payment.refund", "handover.unpaid_authorize", "finance.view",
+    "service.progress", "payment.record", "payment.refund", "handover.unpaid_authorize", "finance.view", "settings.manage",
   ],
   receptionist: [
     "appointment.confirm", "appointment.create", "appointment.cancel", "appointment.reschedule",

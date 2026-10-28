@@ -3,7 +3,7 @@
 // so the prototype cannot show success the backend would reject.
 import { DomainError, type AppointmentDetail, type DataAdapter, type PetDetail } from "../adapter";
 import { createFixtures, DEMO_NOW, type DemoDb } from "./fixtures";
-import { bookableSlots, findConflicts, type ScheduleContext } from "@/lib/domain/availability";
+import { appointmentsAffectedByTimeOff, bookableSlots, findConflicts, type ScheduleContext } from "@/lib/domain/availability";
 import { can, canTransition, APPOINTMENT_LABEL, type Capability } from "@/lib/domain/status";
 import { paidAmount, paymentStatus, totalDue, formatNtd } from "@/lib/domain/money";
 import { addMinutes, dateOf, hhmm } from "@/lib/domain/time";
@@ -86,7 +86,7 @@ export function createDemoAdapter(store = new DemoStore()): DataAdapter & { stor
   const session = (): Session => {
     const staffId = ROLE_STAFF[store.settings.role];
     const s = db().staff.find((x) => x.id === staffId)!;
-    return { staffId, displayName: s.displayName, role: store.settings.role, shopId: db().shop.id };
+    return { userId: staffId, staffId, displayName: s.displayName, role: store.settings.role, shopId: db().shop.id };
   };
 
   async function read<T>(fn: () => T): Promise<T> {
@@ -297,12 +297,130 @@ export function createDemoAdapter(store = new DemoStore()): DataAdapter & { stor
         db().weights.push({ id: id("w"), petId, weightKg: Math.round(weightKg * 10) / 10, measuredAt: tick(), recordedBy: session().displayName });
       }),
 
+    // DEMO: the image is kept as a data URL in this browser only (real uploads go to the private Storage bucket).
+    uploadPetMedia: async (petId, file, category, caption) => {
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new DomainError("VALIDATION", "只接受 JPG、PNG 或 WebP 圖片");
+      if (file.size > 5 * 1024 * 1024) throw new DomainError("VALIDATION", "圖片需小於 5MB");
+      const url = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result));
+        r.onerror = () => reject(new DomainError("VALIDATION", "讀取圖片失敗"));
+        r.readAsDataURL(file);
+      });
+      return write("service.progress", () => {
+        if (!db().pets.some((p) => p.id === petId)) throw new DomainError("NOT_FOUND", "找不到這隻毛孩");
+        db().media.push({ id: id("m"), petId, appointmentId: null, category, url, takenAt: tick(), caption: caption?.trim() || null });
+      });
+    },
+
     addNote: (petId, note) =>
       write("service.progress", () => {
         if (!db().pets.some((p) => p.id === petId)) throw new DomainError("NOT_FOUND", "找不到這隻毛孩");
         if (!note.body.trim()) throw new DomainError("VALIDATION", "請填寫注意事項內容");
         const updatedBy = note.source === "owner_reported" ? `${session().displayName}（代記飼主說明）` : session().displayName;
         db().notes.push({ id: id("n"), petId, ...note, body: note.body.trim(), updatedBy, updatedAt: tick() });
+      }),
+
+    // DEMO: no real LINE account can be connected here — say so instead of pretending.
+    getLineStatus: () => read(() => ({ configured: false, basicId: null, linkedCustomers: 0, webhookUrl: null })),
+    setLineChannel: async () => {
+      throw new DomainError("VALIDATION", "Demo 版不會連接真的 LINE 官方帳號；請在正式版（Supabase）設定。");
+    },
+    clearLineChannel: async () => {},
+    createLinkCode: async () => {
+      throw new DomainError("VALIDATION", "請先在「服務與設定」連接店家的 LINE 官方帳號（Demo 版不提供）");
+    },
+    getPublicLinkCode: async () => ({ available: false }),
+
+    listStaffAccounts: () =>
+      read(() =>
+        db().staff.map((s) => ({ userId: s.id, displayName: s.displayName, email: `${s.id.replace("stf-", "")}@demo.petos`, role: s.role, active: true, isGroomer: s.isGroomer })),
+      ),
+    createStaffAccount: (input) =>
+      write("settings.manage", () => {
+        if (!input.displayName.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(input.email)) throw new DomainError("VALIDATION", "請填寫稱呼與正確的 Email");
+        if (input.password.length < 8) throw new DomainError("VALIDATION", "初始密碼至少 8 個字元");
+        db().staff.push({ id: id("stf"), shopId: db().shop.id, displayName: input.displayName.trim(), role: input.role, isGroomer: input.isGroomer, serviceIds: [], color: "slate" });
+      }),
+    setStaffActive: async () => {
+      throw new DomainError("VALIDATION", "Demo 版不提供停用帳號");
+    },
+    resetStaffPassword: async () => {
+      throw new DomainError("VALIDATION", "Demo 版沒有真的帳號密碼");
+    },
+
+    findCustomerByPhone: (phone) =>
+      read(() => db().customers.find((c) => c.phone.replace(/-/g, "") === phone.replace(/\D/g, "")) ?? null),
+
+    createCustomerPet: (input) =>
+      write("appointment.create", () => {
+        if (!input.petName.trim()) throw new DomainError("VALIDATION", "請填寫毛孩名字");
+        let customerId = input.customerId;
+        if (customerId) {
+          if (!db().customers.some((c) => c.id === customerId)) throw new DomainError("NOT_FOUND", "找不到飼主");
+        } else {
+          const digits = (input.phone ?? "").replace(/\D/g, "");
+          if (!input.customerName?.trim() || !/^09\d{8}$/.test(digits)) throw new DomainError("VALIDATION", "請填寫飼主稱呼與 09 開頭的手機號碼");
+          if (db().customers.some((c) => c.phone.replace(/-/g, "") === digits)) throw new DomainError("CONFLICT", "這支手機已有飼主資料，請改選既有飼主");
+          customerId = id("cus");
+          db().customers.push({ id: customerId, shopId: db().shop.id, name: input.customerName.trim(), phone: digits.replace(/^(\d{4})(\d{3})(\d{3})$/, "$1-$2-$3"), lineLinked: false });
+        }
+        const petId = id("pet");
+        db().pets.push({
+          id: petId, shopId: db().shop.id, primaryCustomerId: customerId, name: input.petName.trim(), species: input.species, breed: input.breed?.trim() || null, sex: input.sex ?? "unknown",
+          birthdate: input.birthdate || null, birthdateEstimated: false, neutered: null, coatColor: null, microchipMasked: null, photoUrl: null, groomingPreferences: null, productPreferences: null, estimatedMinutes: null,
+        });
+        if (input.weightKg && input.weightKg > 0) db().weights.push({ id: id("w"), petId, weightKg: input.weightKg, measuredAt: tick(), recordedBy: session().displayName });
+        return { petId, customerId };
+      }),
+
+    saveService: (input) =>
+      write("settings.manage", () => {
+        if (!input.name.trim() || input.basePrice < 0 || input.durationMinutes < 5) throw new DomainError("VALIDATION", "請確認名稱、價格與時長");
+        const existing = input.id ? db().services.find((s) => s.id === input.id) : undefined;
+        if (existing) Object.assign(existing, { ...input, id: existing.id, shopId: existing.shopId });
+        else db().services.push({ ...input, id: id("svc"), shopId: db().shop.id });
+      }),
+
+    archiveService: (sid) =>
+      write("settings.manage", () => {
+        db().services = db().services.filter((s) => s.id !== sid); // demo: historical items keep their snapshots
+      }),
+
+    setOperatingHours: (hours) =>
+      write("settings.manage", () => {
+        for (const h of hours) {
+          if (h.opens && h.closes && h.opens >= h.closes) throw new DomainError("VALIDATION", "打烊時間需晚於開店時間");
+          const row = db().hours.find((x) => x.weekday === h.weekday);
+          if (row) Object.assign(row, h);
+        }
+      }),
+
+    setStaffServices: (staffId, serviceIds) =>
+      write("settings.manage", () => {
+        const s = db().staff.find((x) => x.id === staffId);
+        if (!s) throw new DomainError("NOT_FOUND", "找不到員工");
+        s.serviceIds = [...serviceIds];
+      }),
+
+    addTimeOff: (input) =>
+      write("settings.manage", () => {
+        if (input.endsAt <= input.startsAt) throw new DomainError("VALIDATION", "結束時間需晚於開始時間");
+        const t = { id: id("off"), staffId: input.staffId, startsAt: input.startsAt, endsAt: input.endsAt, reason: input.reason.trim() || "休假" };
+        db().timeOff.push(t);
+        const staff = db().staff.find((x) => x.id === input.staffId);
+        const affected = appointmentsAffectedByTimeOff(ctx(), t).filter((a) => a.status === "pending" || a.status === "confirmed");
+        affected.forEach((a) => pushEvent(a.id, "warning", `${staff?.displayName} 新增休假（${t.reason}），此預約需聯絡飼主改期或改派`));
+        tick();
+        return affected.map((a) => {
+          const c = db().customers.find((x) => x.id === a.customerId)!;
+          return { id: a.id, startsAt: a.startsAt, status: a.status, petName: db().pets.find((p) => p.id === a.petId)!.name, customerName: c.name, customerPhone: c.phone };
+        });
+      }),
+
+    deleteTimeOff: (tid) =>
+      write("settings.manage", () => {
+        db().timeOff = db().timeOff.filter((t) => t.id !== tid);
       }),
 
     createAppointment: (input) =>
@@ -479,6 +597,9 @@ export function createDemoAdapter(store = new DemoStore()): DataAdapter & { stor
           shop: db().shop,
           services: db().services.filter((s) => s.onlineBookable && !s.isAddon),
           groomers: db().staff.filter((s) => s.isGroomer).map((s) => ({ id: s.id, displayName: s.displayName })),
+          closedWeekdays: db().hours.filter((h) => !h.opens).map((h) => h.weekday),
+          returningVerification: "demo" as const,
+          lineBasicId: null,
         };
       }),
 
@@ -493,7 +614,7 @@ export function createDemoAdapter(store = new DemoStore()): DataAdapter & { stor
     requestOtp: (slug, phone) =>
       read(() => {
         if (slug !== db().shop.slug || !/^09\d{2}-?\d{3}-?\d{3}$/.test(phone)) throw new DomainError("VALIDATION", "請輸入正確的手機號碼（09 開頭 10 碼）");
-        return { sent: true, demoCode: DEMO_OTP };
+        return { sent: true, channel: "demo" as const, demoCode: DEMO_OTP };
       }),
 
     verifyOtp: (slug, phone, code) =>

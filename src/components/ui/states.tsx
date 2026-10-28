@@ -72,3 +72,20 @@ export function ActionError({ error }: { error: unknown }) {
     </div>
   );
 }
+
+/** Shown above cached data when a refresh failed: the data may be stale, nothing was changed. */
+export function StaleNotice({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+  if (!error) return null;
+  const offline = error instanceof DomainError && error.code === "OFFLINE";
+  return (
+    <div role="status" className="mb-3 flex items-center gap-2 border-l-[3px] border-warning bg-warning-tint px-3 py-2 text-sm text-warning-ink">
+      <WifiOff className="size-4 shrink-0" aria-hidden />
+      <span className="flex-1">{offline ? "目前離線，顯示的是先前載入的資料" : "更新失敗，顯示的是先前載入的資料"}</span>
+      {onRetry ? (
+        <button type="button" onClick={onRetry} className="min-h-9 font-medium underline">
+          重試
+        </button>
+      ) : null}
+    </div>
+  );
+}

@@ -5,6 +5,7 @@ import { dateOf, formatMonthDay, hhmm, weekdayLabel } from "@/lib/domain/time";
 import { PetAvatar } from "@/components/pet/PetAvatar";
 import { StatusLabel } from "./StatusLabel";
 import { cn } from "@/lib/cn";
+import { useIsDesktop } from "@/lib/hooks/useMedia";
 
 /**
  * Ledger row: time spine · ID photo · pet name · service/groomer · status.
@@ -26,6 +27,7 @@ export function AppointmentRow({
   /** For rows that are not on the page's day (e.g. pending requests). */
   showDate?: boolean;
 }) {
+  const isDesktop = useIsDesktop();
   const muted = a.status === "cancelled" || a.status === "no_show" || a.status === "completed";
   const services = a.items.filter((i) => i.approval === "approved").map((i) => i.name).join("＋");
   const note = showNotes && !muted ? a.highNotes[0] : undefined;
@@ -77,11 +79,11 @@ export function AppointmentRow({
             <span className="truncate">{note.body}</span>
           </p>
         ) : null}
-        {action ? <div className="relative z-10 mt-2 lg:hidden">{action}</div> : null}
+        {action && !isDesktop ? <div className="relative z-10 mt-2">{action}</div> : null}
       </div>
       <div className="relative z-10 hidden flex-col items-end gap-2 lg:flex">
         <StatusLabel status={a.status} />
-        {action}
+        {isDesktop ? action : null}
       </div>
     </li>
   );

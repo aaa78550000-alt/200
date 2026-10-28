@@ -57,7 +57,13 @@ export function usePendingRequests() {
 }
 export function useAppointment(id: string | null) {
   const a = useAdapter();
-  return useQuery({ queryKey: qk.appointment(id ?? ""), queryFn: () => a.getAppointment(id!), enabled: !!id });
+  return useQuery({
+    queryKey: qk.appointment(id ?? ""),
+    queryFn: () => a.getAppointment(id!),
+    enabled: !!id,
+    // the LINE worker delivers in the background: keep checking until no message is still queued
+    refetchInterval: (query) => (query.state.data?.notifications.some((n) => n.status === "queued") ? 3000 : false),
+  });
 }
 export function usePets(q: string) {
   const a = useAdapter();

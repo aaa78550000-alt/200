@@ -1,4 +1,8 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { Link, Navigate, NavLink, Outlet } from "react-router-dom";
+import { EMBEDDED } from "@/lib/env";
+import { sitePath } from "@/lib/paths";
+import { DomainError } from "@/lib/db/adapter";
+import { useAdapter } from "@/lib/db/context";
 import { CalendarDays, ExternalLink, LayoutList, MoreHorizontal, PawPrint } from "lucide-react";
 import { useSession, useShop } from "@/lib/hooks/queries";
 import { ROLE_LABEL } from "@/lib/domain/status";
@@ -25,8 +29,24 @@ export function Wordmark({ className }: { className?: string }) {
 }
 
 export function AppShell() {
+  const adapter = useAdapter();
   const { data: shop } = useShop();
-  const { data: session } = useSession();
+  const { data: session, error: sessionError } = useSession();
+  if (sessionError instanceof DomainError && sessionError.code === "UNAUTHENTICATED") return <Navigate to="/login" replace />;
+  if (sessionError instanceof DomainError && sessionError.code === "NO_SHOP") return <Navigate to="/onboarding" replace />;
+  if (sessionError instanceof DomainError && sessionError.code === "FORBIDDEN")
+    return (
+      <div className="grid min-h-dvh place-items-center px-4 text-center" role="alert">
+        <div>
+          <p className="text-lg font-bold">{sessionError.message}</p>
+          {adapter.signOut ? (
+            <button type="button" className="mt-3 min-h-11 text-primary hover:underline" onClick={() => adapter.signOut!().then(() => window.location.assign(sitePath("/login")))}>
+              換一個帳號登入
+            </button>
+          ) : null}
+        </div>
+      </div>
+    );
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[224px_minmax(0,1fr)]">
       <aside className="sticky top-0 hidden h-dvh flex-col border-r border-rule bg-canvas px-3 py-5 lg:flex">
@@ -54,10 +74,22 @@ export function AppShell() {
           </NavLink>
         </nav>
         <div className="mt-auto border-t border-rule px-3 pt-4">
-          <a href={`/book/${shop?.slug ?? "calm-studio"}`} target="_blank" rel="noreferrer" className="flex min-h-11 items-center gap-2 text-sm text-primary hover:underline">
-            <ExternalLink className="size-4" aria-hidden />
-            飼主線上預約頁
-          </a>
+          {EMBEDDED ? (
+            <Link to={`/book/${shop?.slug ?? "calm-studio"}`} className="flex min-h-11 items-center gap-2 text-sm text-primary hover:underline">
+              <ExternalLink className="size-4" aria-hidden />
+              飼主線上預約頁
+            </Link>
+          ) : (
+            <a href={sitePath(`/book/${shop?.slug ?? "calm-studio"}`)} target="_blank" rel="noreferrer" className="flex min-h-11 items-center gap-2 text-sm text-primary hover:underline">
+              <ExternalLink className="size-4" aria-hidden />
+              飼主線上預約頁
+            </a>
+          )}
+          {adapter.signOut ? (
+            <button type="button" className="flex min-h-11 items-center text-sm text-muted hover:text-ink" onClick={() => adapter.signOut!().then(() => window.location.assign(sitePath("/login")))}>
+              登出
+            </button>
+          ) : null}
         </div>
       </aside>
 

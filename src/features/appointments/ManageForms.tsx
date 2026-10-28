@@ -6,7 +6,7 @@ import type { AppointmentDetail } from "@/lib/db/adapter";
 import { findConflicts } from "@/lib/domain/availability";
 import { dateOf, formatDateLong, hhmm, taipeiIso } from "@/lib/domain/time";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Segmented } from "@/components/ui/field";
+import { Field, Input, Segmented, TimeSelect } from "@/components/ui/field";
 import { ActionError } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 
@@ -99,7 +99,7 @@ export function RescheduleForm({ a, onCancel, onDone }: { a: AppointmentDetail; 
           <Input id="rs-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
         <Field label="開始時間" htmlFor="rs-time">
-          <Input id="rs-time" type="time" step={900} value={time} onChange={(e) => setTime(e.target.value)} className="num" />
+          <TimeSelect id="rs-time" step={15} value={time} onChange={setTime} className="w-full" />
         </Field>
       </div>
       <Field label="美容師">

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, CalendarPlus, Phone } from "lucide-react";
 import { useAdapter } from "@/lib/db/context";
 import { usePet, usePetosMutation, useSession } from "@/lib/hooks/queries";
@@ -30,10 +30,11 @@ export function PetProfilePage() {
   const navigate = useNavigate();
   const adapter = useAdapter();
   const q = usePet(id!);
+  const location = useLocation();
   const [booking, setBooking] = useState(false);
   const today = dateOf(adapter.now());
 
-  if (q.isLoading)
+  if (q.isLoading && !q.data)
     return (
       <div className="mx-auto max-w-[1080px] space-y-4 px-4 pt-6 lg:px-8" role="status" aria-label="載入毛孩檔案">
         <div className="flex gap-4">
@@ -46,7 +47,7 @@ export function PetProfilePage() {
         <Skeleton className="h-28 w-full" />
       </div>
     );
-  if (q.error || !q.data)
+  if (!q.data)
     return (
       <div className="px-4 pt-6 lg:px-8">
         <ErrorState error={q.error} onRetry={() => q.refetch()} />
@@ -120,7 +121,7 @@ export function PetProfilePage() {
             <AttentionList notes={p.notes.filter((n) => n.severity === "high")} emptyText="沒有標記為重要的注意事項" />
           </section>
 
-          <Tabs defaultValue={window.location.hash === "#care" ? "care" : "overview"} className="mt-6">
+          <Tabs defaultValue={location.hash === "#care" ? "care" : "overview"} className="mt-6">
             <TabsList aria-label="毛孩檔案分頁">
               <TabsTrigger value="overview">概覽</TabsTrigger>
               <TabsTrigger value="history">美容紀錄</TabsTrigger>
@@ -271,17 +272,43 @@ function Care({ p }: { p: PetDetail }) {
 }
 
 function Photos({ p }: { p: PetDetail }) {
+  const adapter = useAdapter();
+  const toast = useToast();
   const [cat, setCat] = useState<"all" | MediaCategory>("all");
   const [zoom, setZoom] = useState<PetDetail["media"][number] | null>(null);
+  const [uploadCat, setUploadCat] = useState<"before" | "after" | "care">("after");
+  const upload = usePetosMutation((file: File) => adapter.uploadPetMedia(p.id, file, uploadCat));
   const media = p.media.filter((m) => m.category !== "avatar" && (cat === "all" || m.category === cat));
   return (
     <div>
-      <Segmented<"all" | MediaCategory>
-        label="相片分類"
-        value={cat}
-        onChange={setCat}
-        options={[{ value: "all", label: "全部" }, { value: "before", label: "美容前" }, { value: "after", label: "美容後" }, { value: "care", label: "照護" }]}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Segmented<"all" | MediaCategory>
+          label="相片分類"
+          value={cat}
+          onChange={setCat}
+          options={[{ value: "all", label: "全部" }, { value: "before", label: "美容前" }, { value: "after", label: "美容後" }, { value: "care", label: "照護" }]}
+        />
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-y border-rule py-2">
+        <span className="text-sm text-muted">新增照片：</span>
+        <Segmented<"before" | "after" | "care"> label="上傳分類" value={uploadCat} onChange={setUploadCat} options={[{ value: "before", label: "美容前" }, { value: "after", label: "美容後" }, { value: "care", label: "照護" }]} />
+        <label className="inline-flex h-11 cursor-pointer items-center rounded-[var(--radius-control)] border border-border bg-surface px-4 text-[15px] font-medium hover:border-ink/30 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-primary">
+          {upload.isPending ? "上傳中…" : "選擇照片"}
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="sr-only"
+            data-testid="photo-input"
+            disabled={upload.isPending}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) upload.mutate(f, { onSuccess: () => toast("照片已上傳") });
+            }}
+          />
+        </label>
+      </div>
+      {upload.error ? <div className="mt-2"><ActionError error={upload.error} /></div> : null}
       {media.length ? (
         <ul className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
           {media.map((m) => (
@@ -298,7 +325,7 @@ function Photos({ p }: { p: PetDetail }) {
       ) : (
         <p className="py-6 text-muted">這個分類還沒有照片。</p>
       )}
-      <p className="mt-4 text-xs text-muted">DEMO 圖片為 AI 生成之虛構毛孩。正式版照片存於私有空間，只以短期授權連結顯示。</p>
+      <p className="mt-4 text-xs text-muted">{adapter.mode === "demo" ? "DEMO 圖片為 AI 生成之虛構毛孩；Demo 上傳只存在這個瀏覽器。" : "照片存於私有空間，只以 10 分鐘有效的授權連結顯示。"}</p>
       <Sheet open={!!zoom} onOpenChange={(o) => !o && setZoom(null)} title={zoom ? `${MEDIA_LABEL[zoom.category]} · ${formatDateShort(zoom.takenAt)}` : ""} side="center">
         {zoom ? (
           <figure>
@@ -312,15 +339,35 @@ function Photos({ p }: { p: PetDetail }) {
 }
 
 function Member({ p }: { p: PetDetail }) {
+  const adapter = useAdapter();
+  const { data: session } = useSession();
+  const link = usePetosMutation(() => adapter.createLinkCode(p.customer.id));
+  const canLink = session ? can(session.role, "appointment.create") : false;
   return (
-    <dl className="grid grid-cols-[96px_minmax(0,1fr)] gap-y-2 text-[15px]">
-      <dt className="text-muted">飼主</dt>
-      <dd>{p.customer.name}</dd>
-      <dt className="text-muted">LINE</dt>
-      <dd>{p.customer.lineLinked ? "已綁定店家官方帳號" : <span className="text-muted">未綁定</span>}</dd>
-      <dt className="text-muted">包套・儲值</dt>
-      <dd className="text-muted">尚未啟用（規劃於 P1 里程碑）</dd>
-    </dl>
+    <div className="space-y-4">
+      <dl className="grid grid-cols-[96px_minmax(0,1fr)] gap-y-2 text-[15px]">
+        <dt className="text-muted">飼主</dt>
+        <dd>{p.customer.name}</dd>
+        <dt className="text-muted">LINE</dt>
+        <dd data-testid="line-link-state">{p.customer.lineLinked ? <span className="text-success-ink">已綁定，通知會傳到飼主的 LINE</span> : <span className="text-muted">未綁定</span>}</dd>
+        <dt className="text-muted">包套・儲值</dt>
+        <dd className="text-muted">尚未啟用（規劃於 P1 里程碑）</dd>
+      </dl>
+      {!p.customer.lineLinked && canLink ? (
+        <div className="border-t border-rule pt-3">
+          {link.data ? (
+            <div className="bg-primary-tint/50 px-4 py-3" data-testid="link-code">
+              <p className="text-[15px]">請飼主在 LINE 加入 <span className="font-semibold">{link.data.basicId}</span> 好友，並傳送綁定碼：</p>
+              <p className="num mt-1 text-3xl font-bold tracking-[0.2em]">{link.data.code}</p>
+              <p className="mt-1 text-sm text-muted">7 天內有效，使用一次後失效。</p>
+            </div>
+          ) : (
+            <Button onClick={() => link.mutate()} loading={link.isPending} data-testid="make-link-code">產生 LINE 綁定碼</Button>
+          )}
+          {link.error ? <div className="mt-2"><ActionError error={link.error} /></div> : null}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
