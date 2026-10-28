@@ -59,12 +59,16 @@ jobs:
           echo "projects: $(api projects | jq -c '[.[] | {id, name, status}]')"
           REF=$(api projects | jq -r '[.[] | select(.name=="petos")][0].id // empty')
           if [ -z "$REF" ]; then
-            ORG=$(api organizations | jq -r '.[0].id // empty')
+            # the project lives in an organization named PetOS (created here on first run, free plan);
+            # /v1/organizations can come back empty for some tokens, so also read the CLI's table
+            pet_org() { api organizations | jq -r '[.[] | select(.name=="PetOS")][0].id // empty'; }
+            cli_org() { npx supabase orgs list 2>/dev/null | awk -F'|' '$2 ~ /PetOS/ || $3 ~ /PetOS/ {gsub(/ /,"",$1); gsub(/ /,"",$2); print ($1 != "" ? $1 : $2)}' | head -1; }
+            ORG=$(pet_org); [ -n "$ORG" ] || ORG=$(cli_org)
             if [ -z "$ORG" ]; then
-              # first-time account: create a (free plan) organization to hold the project
               npx supabase orgs create PetOS
-              ORG=$(api organizations | jq -r '.[0].id // empty')
+              ORG=$(pet_org); [ -n "$ORG" ] || ORG=$(cli_org)
             fi
+            test -n "$ORG" || { echo "::error::Could not find the PetOS organization"; npx supabase orgs list; exit 1; }
             echo "organization: $ORG"
             PASS="${SUPABASE_DB_PASSWORD:-$(openssl rand -hex 24)}"
             npx supabase projects create petos --org-id "$ORG" --db-password "$PASS" --region "${{ inputs.region }}"
