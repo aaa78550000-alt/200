@@ -52,20 +52,24 @@ jobs:
       - name: Find or create the "petos" project
         id: project
         run: |
-          REF=$(npx supabase projects list -o json | jq -r '.[] | select(.name=="petos") | .id' | head -1)
+          # Management API directly (stable JSON): organizations[].id is the org slug, projects[].id is the project ref
+          api() { curl -fsS -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "https://api.supabase.com/v1/$1"; }
+          REF=$(api projects | jq -r '[.[] | select(.name=="petos")][0].id // empty')
           if [ -z "$REF" ]; then
-            ORG=$(npx supabase orgs list -o json | jq -r '.[0].slug // .[0].id')
-            if [ -z "$ORG" ] || [ "$ORG" = null ]; then
+            ORG=$(api organizations | jq -r '.[0].id // empty')
+            if [ -z "$ORG" ]; then
               # first-time account: create a (free plan) organization to hold the project
               npx supabase orgs create PetOS
-              ORG=$(npx supabase orgs list -o json | jq -r '.[0].slug // .[0].id')
+              ORG=$(api organizations | jq -r '.[0].id // empty')
             fi
+            echo "organization: $ORG"
             PASS="${SUPABASE_DB_PASSWORD:-$(openssl rand -hex 24)}"
             npx supabase projects create petos --org-id "$ORG" --db-password "$PASS" --region "${{ inputs.region }}"
           fi
           for i in $(seq 1 90); do
-            REF=$(npx supabase projects list -o json | jq -r '.[] | select(.name=="petos") | .id' | head -1)
-            STATUS=$(npx supabase projects list -o json | jq -r '.[] | select(.name=="petos") | .status' | head -1)
+            P=$(api projects | jq -c '[.[] | select(.name=="petos")][0] // {}')
+            REF=$(echo "$P" | jq -r '.id // empty'); STATUS=$(echo "$P" | jq -r '.status // empty')
+            echo "project ${REF:-?}: ${STATUS:-?}"
             [ "$STATUS" = "ACTIVE_HEALTHY" ] && break; sleep 10
           done
           test "$STATUS" = "ACTIVE_HEALTHY" || { echo "::error::Project petos is $STATUS, not ready"; exit 1; }
@@ -97,7 +101,8 @@ jobs:
         id: keys
         run: |
           REF=${{ steps.project.outputs.ref }}
-          ANON=$(npx supabase projects api-keys --project-ref "$REF" -o json | jq -r '.[] | select(.name=="anon") | .api_key')
+          ANON=$(curl -fsS -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "https://api.supabase.com/v1/projects/$REF/api-keys" | jq -r '.[] | select(.name=="anon") | .api_key')
+          test -n "$ANON" || { echo "::error::anon key not found"; exit 1; }
           echo "url=https://$REF.supabase.co" >> "$GITHUB_OUTPUT"
           echo "anon=$ANON" >> "$GITHUB_OUTPUT"
 
