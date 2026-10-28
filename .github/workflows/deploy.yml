@@ -17,6 +17,10 @@ on:
         default: supabase
         type: choice
         options: [demo, supabase]
+      org:
+        description: "Supabase organization slug for a new project (optional; found automatically when listed)"
+        required: false
+        default: ""
       region:
         description: "Supabase region for a new project"
         required: false
@@ -56,14 +60,14 @@ jobs:
           set -o pipefail
           api() { curl -fsS -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "https://api.supabase.com/v1/$1"; }
           echo "organizations: $(api organizations | jq -c '[.[] | {id, name}]')"
-          echo "projects: $(api projects | jq -c '[.[] | {id, name, status}]')"
+          echo "projects: $(api projects | jq -c '[.[] | {id, name, status, organization_id, organization_slug}]')"
           REF=$(api projects | jq -r '[.[] | select(.name=="petos")][0].id // empty')
           if [ -z "$REF" ]; then
             # the project lives in an organization named PetOS (created here on first run, free plan);
             # /v1/organizations can come back empty for some tokens, so also read the CLI's table
             pet_org() { api organizations | jq -r '[.[] | select(.name=="PetOS")][0].id // empty'; }
             cli_org() { npx supabase orgs list 2>/dev/null | awk -F'|' '$2 ~ /PetOS/ || $3 ~ /PetOS/ {gsub(/ /,"",$1); gsub(/ /,"",$2); print ($1 != "" ? $1 : $2)}' | head -1; }
-            ORG=$(pet_org); [ -n "$ORG" ] || ORG=$(cli_org)
+            ORG="${{ inputs.org }}"; [ -n "$ORG" ] || ORG=$(pet_org); [ -n "$ORG" ] || ORG=$(cli_org)
             if [ -z "$ORG" ]; then
               npx supabase orgs create PetOS
               ORG=$(pet_org); [ -n "$ORG" ] || ORG=$(cli_org)
