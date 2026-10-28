@@ -1,13 +1,16 @@
 // Outbox worker: claims queued LINE jobs and pushes them. Invoked by pg_net right after a job is queued
-// and every minute by pg_cron (retries with backoff). Only the service key may call it.
+// and every minute by pg_cron (retries with backoff). Only the database (holding PETOS_WORKER_SECRET in Vault)
+// may call it; without that secret configured, the service key is accepted (local development).
 import { json, rpc, SERVICE_KEY } from "../_shared/backend.ts";
 import { pushText } from "../_shared/line.ts";
 
 interface Job { id: string; attempts: number }
 interface Message { to: string | null; token: string | null; text: string | null }
 
+const WORKER_SECRET = Deno.env.get("PETOS_WORKER_SECRET") || SERVICE_KEY;
+
 Deno.serve(async (req) => {
-  if (req.headers.get("Authorization") !== `Bearer ${SERVICE_KEY}`) return json({ error: "unauthorized" }, 401);
+  if (req.headers.get("Authorization") !== `Bearer ${WORKER_SECRET}`) return json({ error: "unauthorized" }, 401);
   const jobs = await rpc<Job[]>("claim_notification_jobs", { p_limit: 20 });
   const results: { id: string; ok: boolean; status: number }[] = [];
   for (const job of jobs) {

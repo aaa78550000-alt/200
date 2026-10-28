@@ -10,9 +10,9 @@ M0～M3 完成：五個核心畫面＋毛孩/設定/登入/開店，皆可在 **
 |---|---|---|
 | `npm run typecheck` / `vite build` | 通過 | — |
 | `npm test` | **22 passed** | 狀態機、金額由 ledger 推導、Asia/Taipei 日期、可預約時段、demo adapter 冪等/版本/OTP |
-| `npm run test:db` | **47 passed** | RLS 兩店×多角色、跨店寫入拒絕、函式權限（anon 只能呼叫 5 個公開函式）、**8 路並發同時段只成功 1 筆**、休假警示、改期保留 id、完工不重複、部分付款/退款/冪等、ledger 不可修改、未付款交接授權＋audit、OTP 與防暴力、開店 |
+| `npm run test:db` | **54 passed** | RLS 兩店×多角色、跨店寫入拒絕、函式權限（anon 只能呼叫 5 個公開函式）、**8 路並發同時段只成功 1 筆**、休假警示、改期保留 id、完工不重複、部分付款/退款/冪等、ledger 不可修改、未付款交接授權＋audit、OTP 與防暴力、開店 |
 | `npm run test:e2e` | **62 passed**（2 skipped＝僅桌面項目） | demo × 390/1440；375/768/1024 無橫向溢出；每頁 console error = 0；E03–E18 UI 流程；設定/新增毛孩 |
-| `npm run test:e2e:supabase` | **12 passed** | UI × 真實 Auth/PostgREST/Storage：重新整理後狀態仍在、mock LINE 送出、跨店不可見、櫃檯不能授權賒帳、美容師看不到金額、匿名申請→店員確認、OTP、私有照片上傳＋簽章 URL、離線不假成功、註冊開店 |
+| `npm run test:e2e:supabase` | **20 passed** | UI × 真實 Auth/PostgREST/Storage：重新整理後狀態仍在、mock LINE 送出、跨店不可見、櫃檯不能授權賒帳、美容師看不到金額、匿名申請→店員確認、OTP、私有照片上傳＋簽章 URL、離線不假成功、註冊開店 |
 
 ### QA E-list 對照
 | E | 狀態 | 證據 |
@@ -52,11 +52,12 @@ M0～M3 完成：五個核心畫面＋毛孩/設定/登入/開店，皆可在 **
 ## 上線（GitHub Pages ＋ Supabase）
 `.github/workflows/deploy.yml`，**只在手動按 Run workflow 時執行**：
 - `mode=demo`：虛構資料版，公開網址 `https://aaa78550000-alt.github.io/200/`
-- `mode=supabase`：自動建立/更新 Supabase 專案 `petos`（套用 migrations，**不套 seed**）、開放 `app` schema、設定登入轉址，再以真實後端建置前端
-- 需要：repo Secrets `SUPABASE_ACCESS_TOKEN`、`SUPABASE_DB_PASSWORD`；Settings → Pages → Source = GitHub Actions
-- 正式環境 `dev_mode=false`：OTP 不回傳驗證碼（SMS 未接，熟客手機驗證暫不可用，新客申請可用）；通知會停在「排隊中」直到部署 LINE worker
-- 本環境網路政策擋 `supabase.com`／`api.supabase.com`，所以由 GitHub Actions 代為執行
-- **尚待補進 workflow（被安全檢查擋下，需使用者授權）**：`supabase functions deploy`、把 worker URL 與 service key 寫入 Vault（`petos_worker_url`／`petos_worker_key`）、Auth `mailer_autoconfirm=true`。未補之前：LINE 推播與員工帳號在正式環境不會運作，且新註冊需收確認信。
+- `mode=supabase`（預設）：自動建立/更新 Supabase 專案 `petos` → `scripts/deploy-migrations.mjs` 經 Management API 套用 migrations（**不套 seed**，不需資料庫密碼，每檔一個 transaction 並記錄在 `supabase_migrations.schema_migrations`）→ 部署 3 個 Edge Functions → 產生專用 `PETOS_WORKER_SECRET`（Function secret ＋ Vault `petos_worker_key`，**不是** service key）與 `petos_worker_url` → 開放 `app` schema、設定登入轉址 → 以真實後端建置前端
+- 需要：repo Secret `SUPABASE_ACCESS_TOKEN`（`SUPABASE_DB_PASSWORD` 選填）；Settings → Pages → Source = GitHub Actions
+- 正式環境 `dev_mode=false`：熟客驗證碼經 LINE 送出（店家需先在設定頁連接 LINE）；未連接 LINE 時通知顯示「未發送」與原因
+- 註冊需收 Supabase 確認信（`mailer_autoconfirm` 未開：關閉 email 驗證屬降低安全性，未經明確授權不改）。注意 Supabase 免費內建寄信只寄給組織成員且每小時數封，對外開放註冊前需設定自訂 SMTP
+- 本環境網路政策擋 `supabase.com`／`api.supabase.com`，所以由 GitHub Actions 代為執行；migration 腳本已在本機 Supabase 從零套用 8 檔並重跑 e2e 驗證
+- 預約詳情在通知「排隊中」時每 3 秒重新讀取，背景送出後畫面自動變「已送出」
 
 ## 可操作路徑
 - Demo：`npm run dev` → `/app/today`（DEMO 工具：角色、離線、LINE 失敗、時段被搶、重設）
