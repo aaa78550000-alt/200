@@ -126,3 +126,6 @@
 | `--danger` | #B74848 | 同 | 白底 5.3:1 |
 | 新增 `--rule` | — | #E6EAE5（= border） | 帳簿髮絲線 |
 | 新增 `--primary-tint` | — | #E7F1EF | 服務中列底色、選取狀態 |
+| 新增 `--primary-ink` / `--success-ink` / `--danger-ink` | — | #206C65 / #26694F / #9E3B3B | 狀態標籤文字在淡色底上原為 4.26 / 4.05 / 4.42:1，未達 AA；調深後 5.37 / 5.68 / 5.67:1（實測腳本見 docs/UI_REVIEW.md） |
+
+實測對比（M0-04）：muted/canvas 5.09、ink/canvas 12.36、白字/primary 4.91、warning-ink/warning-tint 5.29。原 `--warning` #DCA85C 當文字只有 2.14:1，僅作底色與細線使用。

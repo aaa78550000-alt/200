@@ -33,7 +33,7 @@ export function PetProfilePage() {
   const [booking, setBooking] = useState(false);
   const today = dateOf(adapter.now());
 
-  if (q.isLoading)
+  if (q.isLoading && !q.data)
     return (
       <div className="mx-auto max-w-[1080px] space-y-4 px-4 pt-6 lg:px-8" role="status" aria-label="載入毛孩檔案">
         <div className="flex gap-4">
@@ -46,7 +46,7 @@ export function PetProfilePage() {
         <Skeleton className="h-28 w-full" />
       </div>
     );
-  if (q.error || !q.data)
+  if (!q.data)
     return (
       <div className="px-4 pt-6 lg:px-8">
         <ErrorState error={q.error} onRetry={() => q.refetch()} />

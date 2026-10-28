@@ -27,7 +27,7 @@ export function App() {
     createAdapter().then((a) => {
       // Demo store changes made outside a mutation (e.g. the mock LINE worker) must refresh the UI.
       const store = (a as DataAdapter & { store?: { subscribe(l: () => void): () => void } }).store;
-      store?.subscribe(() => queryClient.invalidateQueries({ queryKey: ["petos"] }));
+      store?.subscribe(() => queryClient.invalidateQueries());
       setAdapter(a);
     });
   }, []);

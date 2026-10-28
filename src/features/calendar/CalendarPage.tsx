@@ -13,7 +13,7 @@ import { PetAvatar } from "@/components/pet/PetAvatar";
 import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
-import { EmptyState, ErrorState, ListSkeleton } from "@/components/ui/states";
+import { EmptyState, ErrorState, ListSkeleton, StaleNotice } from "@/components/ui/states";
 import { AppointmentDetail } from "@/features/appointments/AppointmentDetail";
 import { NewAppointmentSheet, type NewAppointmentPreset } from "@/features/appointments/NewAppointmentSheet";
 import { useIsDesktop } from "@/lib/hooks/useMedia";
@@ -191,9 +191,10 @@ export function CalendarPage() {
       )}
 
       <div className="mt-4">
-        {appts.isLoading ? (
+        {appts.data ? <StaleNotice error={appts.error} onRetry={() => appts.refetch()} /> : null}
+        {appts.isLoading && !appts.data ? (
           <ListSkeleton />
-        ) : appts.error ? (
+        ) : !appts.data ? (
           <ErrorState error={appts.error} onRetry={() => appts.refetch()} />
         ) : !isDesktop && mobileMode === "list" ? (
           ctx && !hoursFor(ctx, date) ? (

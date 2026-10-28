@@ -243,7 +243,7 @@ export function BookingPage() {
           ) : null}
 
           {d.step === 2 && service ? (
-            <SlotStep shopSlug={shopSlug} today={today} draft={d} set={set} groomers={info.data.groomers} serviceId={service.id} slotTaken={slotTaken} clearTaken={() => setSlotTaken(null)} />
+            <SlotStep shopSlug={shopSlug} today={today} draft={d} set={set} groomers={info.data.groomers} closedWeekdays={info.data.closedWeekdays} serviceId={service.id} slotTaken={slotTaken} clearTaken={() => setSlotTaken(null)} />
           ) : null}
 
           {d.step === 3 ? <IdentityStep shopSlug={shopSlug} draft={d} set={set} verified={verified} setVerified={setVerified} speciesAllowed={service?.species ?? ["dog"]} /> : null}
@@ -312,7 +312,7 @@ export function BookingPage() {
   );
 }
 
-function SlotStep({ shopSlug, today, draft: d, set, groomers, serviceId, slotTaken, clearTaken }: { shopSlug: string; today: string; draft: Draft; set: (p: Partial<Draft>) => void; groomers: { id: string; displayName: string }[]; serviceId: string; slotTaken: string | null; clearTaken: () => void }) {
+function SlotStep({ shopSlug, today, draft: d, set, groomers, closedWeekdays, serviceId, slotTaken, clearTaken }: { shopSlug: string; today: string; draft: Draft; set: (p: Partial<Draft>) => void; groomers: { id: string; displayName: string }[]; closedWeekdays: number[]; serviceId: string; slotTaken: string | null; clearTaken: () => void }) {
   const adapter = useAdapter();
   const days = useMemo(() => Array.from({ length: 14 }, (_, i) => addDays(today, i)), [today]);
   const date = d.date ?? today;
@@ -336,13 +336,16 @@ function SlotStep({ shopSlug, today, draft: d, set, groomers, serviceId, slotTak
         <Segmented label="美容師" value={d.staffId ?? "any"} onChange={(v) => set({ staffId: v === "any" ? null : v, startsAt: null })} options={[{ value: "any", label: "不指定" }, ...groomers.map((g) => ({ value: g.id, label: g.displayName }))]} />
       </div>
       <div className="-mx-4 mt-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" role="tablist" aria-label="日期">
-        {days.map((day) => (
-          <button key={day} role="tab" aria-selected={day === date} onClick={() => set({ date: day, startsAt: null })} className={cn("flex h-16 min-w-[52px] flex-col items-center justify-center rounded-[var(--radius-control)] border", day === date ? "border-ink bg-ink text-white" : "border-border bg-surface")}>
-            <span className="text-xs">{day === today ? "今天" : weekdayLabel(day).slice(1)}</span>
-            <span className="num text-[17px] font-bold leading-6">{Number(day.slice(8))}</span>
-            <span className={cn("text-[11px] leading-3", day === date ? "text-white/70" : "text-muted")}>{Number(day.slice(5, 7))}月</span>
-          </button>
-        ))}
+        {days.map((day) => {
+          const closed = closedWeekdays.includes(taipeiParts(taipeiIso(day, "12:00")).weekday);
+          return (
+            <button key={day} role="tab" aria-selected={day === date} disabled={closed} aria-label={closed ? `${formatDateLong(day)} 店休` : undefined} onClick={() => set({ date: day, startsAt: null })} className={cn("flex h-16 min-w-[52px] flex-col items-center justify-center rounded-[var(--radius-control)] border", day === date ? "border-ink bg-ink text-white" : closed ? "hatch border-border text-muted" : "border-border bg-surface")}>
+              <span className="text-xs">{day === today ? "今天" : weekdayLabel(day).slice(1)}</span>
+              <span className="num text-[17px] font-bold leading-6">{Number(day.slice(8))}</span>
+              <span className={cn("text-[11px] leading-3", day === date ? "text-white/70" : "text-muted")}>{closed ? "店休" : `${Number(day.slice(5, 7))}月`}</span>
+            </button>
+          );
+        })}
       </div>
       <div className="mt-5" data-testid="slot-list">
         {slots.isLoading ? (

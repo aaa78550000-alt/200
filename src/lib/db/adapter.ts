@@ -85,6 +85,8 @@ export interface PublicBookingInfo {
   shop: Shop;
   services: Service[];
   groomers: { id: string; displayName: string }[];
+  /** 0 = Sunday … 6 = Saturday */
+  closedWeekdays: number[];
 }
 
 /**

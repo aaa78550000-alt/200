@@ -25,9 +25,9 @@ export function PetListPage() {
         </div>
       </header>
       <div className="mt-3">
-        {pets.isLoading ? (
+        {pets.isLoading && !pets.data ? (
           <ListSkeleton />
-        ) : pets.error ? (
+        ) : !pets.data ? (
           <ErrorState error={pets.error} onRetry={() => pets.refetch()} />
         ) : !pets.data?.length ? (
           <EmptyState title={q ? `找不到「${q}」` : "還沒有毛孩資料"} body={q ? "試試飼主姓名或手機末三碼" : undefined} />

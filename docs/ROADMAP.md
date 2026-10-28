@@ -4,10 +4,10 @@
 
 | ID | 里程碑 | 完成定義 | 狀態 |
 |---|---|---|---|
-| M0-01 | 啟動專案、安裝/檢查 design skill、建立工具鏈 | dev server 啟動、CLAUDE.md 與 skills 可讀、測試可執行 | DOING |
-| M0-02 | 視覺探索與 Design System | 有 3 個不同構圖概念、選定 brief、tokens、可重用元件 | TODO |
-| M0-03 | 五個高擬真 UI / demo adapter | 5 頁可點擊、資料一致、Mobile/Desktop 適配 | TODO |
-| M0-04 | Playwright 截圖與互動 QA | 390/1440 截圖、主要流程、溢出與 console 測試有報告 | TODO |
+| M0-01 | 啟動專案、安裝/檢查 design skill、建立工具鏈 | dev server 啟動、CLAUDE.md 與 skills 可讀、測試可執行 | DONE 2026-10-28 |
+| M0-02 | 視覺探索與 Design System | 有 3 個不同構圖概念、選定 brief、tokens、可重用元件 | DONE 2026-10-28（`DESIGN_EXPLORATION.md`） |
+| M0-03 | 五個高擬真 UI / demo adapter | 5 頁可點擊、資料一致、Mobile/Desktop 適配 | DONE 2026-10-28 |
+| M0-04 | Playwright 截圖與互動 QA | 390/1440 截圖、主要流程、溢出與 console 測試有報告 | DONE 2026-10-28（`UI_REVIEW.md`，自查兩輪） |
 | M1-01 | Auth / shops / memberships / RLS | 兩店 + 多角色交叉權限測試 | TODO |
 | M1-02 | 顧客＋毛孩＋照護＋照片 | 真實 DB + 私有圖 + 搜尋 + 體重時間紀錄 | TODO |
 | M2-01 | 服務與員工營業時間 / 休假 | 服務時間/價格與資源配置一致 | TODO |

@@ -479,6 +479,7 @@ export function createDemoAdapter(store = new DemoStore()): DataAdapter & { stor
           shop: db().shop,
           services: db().services.filter((s) => s.onlineBookable && !s.isAddon),
           groomers: db().staff.filter((s) => s.isGroomer).map((s) => ({ id: s.id, displayName: s.displayName })),
+          closedWeekdays: db().hours.filter((h) => !h.opens).map((h) => h.weekday),
         };
       }),
 

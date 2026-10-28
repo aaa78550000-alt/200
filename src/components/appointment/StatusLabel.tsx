@@ -27,12 +27,12 @@ function Glyph({ status }: { status: AppointmentStatus }) {
 const TONE: Record<AppointmentStatus, string> = {
   pending: "text-warning-ink bg-warning-tint",
   confirmed: "text-ink/80 bg-ink/[0.05]",
-  checked_in: "text-primary bg-primary-tint",
-  in_service: "text-primary bg-primary-tint",
-  ready_pickup: "text-success bg-success-tint",
+  checked_in: "text-primary-ink bg-primary-tint",
+  in_service: "text-primary-ink bg-primary-tint",
+  ready_pickup: "text-success-ink bg-success-tint",
   completed: "text-muted bg-transparent",
   cancelled: "text-muted bg-transparent",
-  no_show: "text-danger bg-danger-tint",
+  no_show: "text-danger-ink bg-danger-tint",
 };
 
 export function StatusLabel({ status, className }: { status: AppointmentStatus; className?: string }) {

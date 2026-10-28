@@ -8,11 +8,12 @@ import { IN_SHOP, TERMINAL } from "@/lib/domain/status";
 import { dateOf, formatDateLong } from "@/lib/domain/time";
 import { AppointmentRow } from "@/components/appointment/AppointmentRow";
 import { Button } from "@/components/ui/button";
-import { EmptyState, ErrorState, ListSkeleton } from "@/components/ui/states";
+import { EmptyState, ErrorState, ListSkeleton, StaleNotice } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { AppointmentDetail } from "@/features/appointments/AppointmentDetail";
 import { NewAppointmentSheet } from "@/features/appointments/NewAppointmentSheet";
-import { useIsDesktop } from "@/lib/hooks/useMedia";
+import { useIsDesktop, useIsWide } from "@/lib/hooks/useMedia";
+import { Sheet } from "@/components/ui/sheet";
 import { cn } from "@/lib/cn";
 
 type Filter = "all" | "in_service" | "ready_pickup";
@@ -73,6 +74,7 @@ export function TodayPage() {
   const adapter = useAdapter();
   const today = dateOf(adapter.now());
   const isDesktop = useIsDesktop();
+  const isWide = useIsWide(); // docked panel only when the list keeps enough width
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [filter, setFilter] = useState<Filter>("all");
@@ -99,7 +101,7 @@ export function TodayPage() {
   };
 
   // Desktop master–detail: default focus is the first thing that needs a hand.
-  const selected = params.get("apt") ?? (isDesktop ? (groups.inShop[0] ?? groups.upcoming[0])?.id ?? null : null);
+  const selected = params.get("apt") ?? (isWide ? (groups.inShop[0] ?? groups.upcoming[0])?.id ?? null : null);
   const action = params.get("action") ?? undefined;
   const open = (id: string, act?: string) => {
     if (isDesktop) setParams(act ? { apt: id, action: act } : { apt: id }, { replace: true });
@@ -122,8 +124,8 @@ export function TodayPage() {
   ];
 
   return (
-    <div className="lg:grid lg:h-[calc(100dvh-36px)] lg:grid-cols-[minmax(0,1fr)_440px]">
-      <div className="min-w-0 px-4 pb-10 lg:overflow-y-auto lg:px-8">
+    <div className="xl:grid xl:h-[calc(100dvh-36px)] xl:grid-cols-[minmax(0,1fr)_440px]">
+      <div className="min-w-0 px-4 pb-10 lg:px-8 xl:overflow-y-auto">
         <header className="flex items-end justify-between gap-3 pt-4 lg:pt-7">
           <div>
             <p className="num text-sm text-muted">
@@ -162,11 +164,12 @@ export function TodayPage() {
           ))}
         </div>
 
-        {day.isLoading ? (
+        {day.data ? <div className="mt-3"><StaleNotice error={day.error} onRetry={() => day.refetch()} /></div> : null}
+        {day.isLoading && !day.data ? (
           <div className="mt-4">
             <ListSkeleton />
           </div>
-        ) : day.error ? (
+        ) : !day.data ? (
           <div className="mt-4">
             <ErrorState error={day.error} onRetry={() => day.refetch()} />
           </div>
@@ -210,7 +213,7 @@ export function TodayPage() {
           <SectionHead id="requests" title="待確認申請" count={pendingCount} hint="線上送出，尚未占用時段" />
           {pending.isLoading ? (
             <ListSkeleton rows={1} />
-          ) : pending.error ? (
+          ) : !pending.data ? (
             <ErrorState error={pending.error} onRetry={() => pending.refetch()} />
           ) : pendingCount ? (
             <ul className="divide-y divide-rule">
@@ -224,8 +227,13 @@ export function TodayPage() {
         </section>
       </div>
 
-      {isDesktop ? (
-        <aside aria-label="預約詳情" className="hidden border-l border-rule bg-surface lg:block lg:overflow-y-auto">
+      {isDesktop && !isWide ? (
+        <Sheet open={!!selected} onOpenChange={(o) => !o && setParams({}, { replace: true })} title="預約詳情">
+          {selected ? <AppointmentDetail key={`${selected}:${action ?? ""}`} id={selected} initialAction={action} /> : null}
+        </Sheet>
+      ) : null}
+      {isWide ? (
+        <aside aria-label="預約詳情" className="border-l border-rule bg-surface xl:overflow-y-auto">
           {selected ? (
             <div className="px-6 py-6">
               <AppointmentDetail key={`${selected}:${action ?? ""}`} id={selected} initialAction={action} />
