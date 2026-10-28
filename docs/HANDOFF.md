@@ -41,6 +41,14 @@ M0～M3 完成：五個核心畫面＋毛孩/設定/登入/開店，皆可在 **
 - 內容：完整 demo 版（虛構資料，存在使用者自己的瀏覽器）；更新方式：`npm run build:embedded` 後重新發佈 `dist-embedded/PetOS.html`
 - PR：https://github.com/aaa78550000-alt/200/pull/1（`main` 建在第一個 M0 commit 上，PR 顯示其後所有工作）
 
+## 上線（GitHub Pages ＋ Supabase）
+`.github/workflows/deploy.yml`，**只在手動按 Run workflow 時執行**：
+- `mode=demo`：虛構資料版，公開網址 `https://aaa78550000-alt.github.io/200/`
+- `mode=supabase`：自動建立/更新 Supabase 專案 `petos`（套用 migrations，**不套 seed**）、開放 `app` schema、設定登入轉址，再以真實後端建置前端
+- 需要：repo Secrets `SUPABASE_ACCESS_TOKEN`、`SUPABASE_DB_PASSWORD`；Settings → Pages → Source = GitHub Actions
+- 正式環境 `dev_mode=false`：OTP 不回傳驗證碼（SMS 未接，熟客手機驗證暫不可用，新客申請可用）；通知會停在「排隊中」直到部署 LINE worker
+- 本環境網路政策擋 `supabase.com`／`api.supabase.com`，所以由 GitHub Actions 代為執行
+
 ## 可操作路徑
 - Demo：`npm run dev` → `/app/today`（DEMO 工具：角色、離線、LINE 失敗、時段被搶、重設）
 - 真實後端：`npx supabase start` ＋ `.env.local`（README）→ `/login`（本機帳號見 README）或 `/signup` 開新店

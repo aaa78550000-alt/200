@@ -1,0 +1,118 @@
+# Manual deploy of PetOS to GitHub Pages. Runs ONLY when someone presses "Run workflow".
+#   mode=demo      → fictional demo data in the browser (no backend needed)
+#   mode=supabase  → creates/updates a Supabase project with the migrations (never the dev seed) and builds against it
+# Required for mode=supabase (repo Settings → Secrets and variables → Actions):
+#   SUPABASE_ACCESS_TOKEN  personal access token from supabase.com/dashboard/account/tokens
+#   SUPABASE_DB_PASSWORD   any strong password (used when the project is first created, and for migrations)
+# One-time: Settings → Pages → Source = "GitHub Actions".
+name: Deploy PetOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "demo or supabase"
+        required: true
+        default: demo
+        type: choice
+        options: [demo, supabase]
+      region:
+        description: "Supabase region for a new project"
+        required: false
+        default: ap-northeast-1
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  backend:
+    if: inputs.mode == 'supabase'
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.keys.outputs.url }}
+      anon: ${{ steps.keys.outputs.anon }}
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Check secrets
+        run: |
+          test -n "$SUPABASE_ACCESS_TOKEN" || { echo "::error::Missing secret SUPABASE_ACCESS_TOKEN"; exit 1; }
+          test -n "$SUPABASE_DB_PASSWORD" || { echo "::error::Missing secret SUPABASE_DB_PASSWORD"; exit 1; }
+      - name: Find or create the "petos" project
+        id: project
+        run: |
+          REF=$(npx supabase projects list -o json | jq -r '.[] | select(.name=="petos") | .id' | head -1)
+          if [ -z "$REF" ]; then
+            ORG=$(npx supabase orgs list -o json | jq -r '.[0].id')
+            npx supabase projects create petos --org-id "$ORG" --db-password "$SUPABASE_DB_PASSWORD" --region "${{ inputs.region }}"
+            for i in $(seq 1 60); do
+              REF=$(npx supabase projects list -o json | jq -r '.[] | select(.name=="petos") | .id' | head -1)
+              STATUS=$(npx supabase projects list -o json | jq -r '.[] | select(.name=="petos") | .status' | head -1)
+              [ "$STATUS" = "ACTIVE_HEALTHY" ] && break; sleep 10
+            done
+          fi
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+      - name: Apply migrations (no seed)
+        run: |
+          npx supabase link --project-ref "${{ steps.project.outputs.ref }}" --password "$SUPABASE_DB_PASSWORD"
+          npx supabase db push --password "$SUPABASE_DB_PASSWORD"
+      - name: Expose the app schema to the API and set auth redirect
+        run: |
+          API=https://api.supabase.com/v1/projects/${{ steps.project.outputs.ref }}
+          SITE="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+          curl -fsS -X PATCH "$API/postgrest" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" \
+            -d '{"db_schema":"public,graphql_public,app"}'
+          curl -fsS -X PATCH "$API/config/auth" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" \
+            -d "{\"site_url\":\"$SITE/\",\"uri_allow_list\":\"$SITE/**\"}"
+      - name: Read API keys
+        id: keys
+        run: |
+          REF=${{ steps.project.outputs.ref }}
+          ANON=$(npx supabase projects api-keys --project-ref "$REF" -o json | jq -r '.[] | select(.name=="anon") | .api_key')
+          echo "url=https://$REF.supabase.co" >> "$GITHUB_OUTPUT"
+          echo "anon=$ANON" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: [backend]
+    if: always() && (needs.backend.result == 'success' || needs.backend.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Build
+        env:
+          PAGES_REPO: ${{ github.event.repository.name }}
+          VITE_DATA_MODE: ${{ inputs.mode }}
+          VITE_SUPABASE_URL: ${{ needs.backend.outputs.url }}
+          VITE_SUPABASE_ANON_KEY: ${{ needs.backend.outputs.anon }}
+        run: |
+          npx vite build --mode pages --outDir dist-pages
+          cp dist-pages/index.html dist-pages/404.html   # SPA deep links on GitHub Pages
+          touch dist-pages/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: dist-pages }
+
+  deploy:
+    needs: build
+    if: always() && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

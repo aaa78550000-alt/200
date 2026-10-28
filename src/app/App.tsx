@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, MemoryRouter, Navigate, Route, Routes } from "react-router-dom";
 import type { ReactNode } from "react";
 import { EMBEDDED } from "@/lib/env";
+import { BASE_PATH } from "@/lib/paths";
 import { AdapterContext } from "@/lib/db/context";
 import { createAdapter } from "@/lib/db";
 import type { DataAdapter } from "@/lib/db/adapter";
@@ -28,7 +29,7 @@ const queryClient = new QueryClient({
 });
 
 function Router({ children }: { children: ReactNode }) {
-  return EMBEDDED ? <MemoryRouter initialEntries={["/app/today"]}>{children}</MemoryRouter> : <BrowserRouter>{children}</BrowserRouter>;
+  return EMBEDDED ? <MemoryRouter initialEntries={["/app/today"]}>{children}</MemoryRouter> : <BrowserRouter basename={BASE_PATH || undefined}>{children}</BrowserRouter>;
 }
 
 export function App() {

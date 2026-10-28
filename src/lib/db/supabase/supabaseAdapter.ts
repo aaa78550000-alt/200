@@ -395,9 +395,11 @@ export function createSupabaseAdapter(): DataAdapter {
     },
     deleteTimeOff: async (id) => void (await must(sb.from("time_off").delete().eq("id", id).select("id").single())),
     async signUp(email, password) {
-      const { error } = await sb.auth.signUp({ email, password });
+      const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}login` } });
       if (error) throw new DomainError("VALIDATION", error.message.includes("registered") ? "這個 Email 已註冊，請直接登入" : `註冊失敗：${error.message}`);
       ctx = null;
+      // Hosted projects require email confirmation: no session yet, so the shop is created after the first login (/onboarding).
+      if (!data.session) throw new DomainError("VALIDATION", "已寄出確認信，請到信箱點連結完成驗證，再回來登入建立店家。");
     },
     async createShop(input) {
       await rpc("create_shop", { p_name: input.name, p_slug: input.slug, p_display_name: input.displayName, p_is_groomer: input.isGroomer });

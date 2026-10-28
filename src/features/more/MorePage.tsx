@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { EMBEDDED } from "@/lib/env";
+import { sitePath } from "@/lib/paths";
 import { AlertTriangle, Check, Copy, ExternalLink, Phone, Plus } from "lucide-react";
 import { useAdapter } from "@/lib/db/context";
 import type { AffectedAppointment, ServiceInput } from "@/lib/db/adapter";
@@ -36,7 +37,7 @@ export function MorePage() {
   const [copied, setCopied] = useState(false);
   const manage = session ? can(session.role, "settings.manage") : false;
   // Embedded demo has no public URL of its own; show the path the shop will get once deployed.
-  const url = shop ? (EMBEDDED ? `https://<你的網域>/book/${shop.slug}` : `${window.location.origin}/book/${shop.slug}`) : "";
+  const url = shop ? (EMBEDDED ? `https://<你的網域>/book/${shop.slug}` : `${window.location.origin}${sitePath(`/book/${shop.slug}`)}`) : "";
   const onboarding = params.get("onboarding") === "1";
 
   return (
@@ -49,7 +50,7 @@ export function MorePage() {
           {!manage && session ? " · 只有店主或店長可以修改設定" : null}
         </p>
         {adapter.signOut ? (
-          <Button size="sm" variant="ghost" className="mt-1 -ml-3" onClick={() => adapter.signOut!().then(() => window.location.assign("/login"))}>
+          <Button size="sm" variant="ghost" className="mt-1 -ml-3" onClick={() => adapter.signOut!().then(() => window.location.assign(sitePath("/login")))}>
             登出
           </Button>
         ) : null}

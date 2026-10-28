@@ -10,7 +10,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss()],
     resolve: { alias: { "@": path.resolve(import.meta.dirname, "src") } },
     server: { port: 5173, strictPort: true, host: "127.0.0.1" },
-    base: embedded ? "./" : "/",
+    // `--mode pages`: GitHub Pages project site served under /<repo>/
+    base: embedded ? "./" : mode === "pages" ? `/${process.env.PAGES_REPO ?? "200"}/` : "/",
     define: embedded ? { "import.meta.env.VITE_EMBEDDED": JSON.stringify("1"), "import.meta.env.VITE_DATA_MODE": JSON.stringify("demo") } : {},
     build: embedded
       ? {

@@ -1,5 +1,6 @@
 import { Link, Navigate, NavLink, Outlet } from "react-router-dom";
 import { EMBEDDED } from "@/lib/env";
+import { sitePath } from "@/lib/paths";
 import { DomainError } from "@/lib/db/adapter";
 import { useAdapter } from "@/lib/db/context";
 import { CalendarDays, ExternalLink, LayoutList, MoreHorizontal, PawPrint } from "lucide-react";
@@ -66,13 +67,13 @@ export function AppShell() {
               飼主線上預約頁
             </Link>
           ) : (
-            <a href={`/book/${shop?.slug ?? "calm-studio"}`} target="_blank" rel="noreferrer" className="flex min-h-11 items-center gap-2 text-sm text-primary hover:underline">
+            <a href={sitePath(`/book/${shop?.slug ?? "calm-studio"}`)} target="_blank" rel="noreferrer" className="flex min-h-11 items-center gap-2 text-sm text-primary hover:underline">
               <ExternalLink className="size-4" aria-hidden />
               飼主線上預約頁
             </a>
           )}
           {adapter.signOut ? (
-            <button type="button" className="flex min-h-11 items-center text-sm text-muted hover:text-ink" onClick={() => adapter.signOut!().then(() => window.location.assign("/login"))}>
+            <button type="button" className="flex min-h-11 items-center text-sm text-muted hover:text-ink" onClick={() => adapter.signOut!().then(() => window.location.assign(sitePath("/login")))}>
               登出
             </button>
           ) : null}
