@@ -520,13 +520,17 @@ function LineSection({ owner }: { owner: boolean }) {
   return (
     <section className="mt-10" aria-labelledby="line">
       <SectionTitle id="line">LINE 官方帳號通知</SectionTitle>
+      <p className="mt-1 text-sm text-muted">費用由 LINE 收取：官方帳號免費方案每月可主動推播約 200 則，超過需向 LINE 升級（以 LINE 公告為準）。綁定時的自動回覆不占額度。</p>
       {status.isLoading ? <ListSkeleton rows={1} /> : st?.configured ? (
         <div className="mt-3 space-y-1 text-[15px]" data-testid="line-status">
           <p><span className="font-semibold text-success-ink">已連接</span> {st.basicId} · 已綁定飼主 <span className="num">{st.linkedCustomers}</span> 位</p>
-          <p className="text-sm text-muted">完工待接回、預約確認、熟客驗證碼會用這個帳號推播給已綁定的飼主。</p>
+          <p className="text-sm text-muted">完工待接回、預約確認、熟客驗證碼會用這個帳號推播給已綁定的飼主；沒綁定的飼主不會收到，也不占額度。</p>
         </div>
       ) : (
-        <p className="mt-3 text-[15px] text-muted" data-testid="line-status">尚未連接。連接後才會傳 LINE 通知；未連接時通知狀態會顯示「未發送」，不會假裝已送出。</p>
+        <div className="mt-3 space-y-1 text-[15px]" data-testid="line-status">
+          <p>尚未連接（選用功能）</p>
+          <p className="text-sm text-muted">不連接也能完整使用預約、美容、收款與交接；通知狀態會標示「未傳 LINE」，由店員電話或現場聯絡。</p>
+        </div>
       )}
       {st?.webhookUrl ? (
         <div className="mt-3 text-sm">

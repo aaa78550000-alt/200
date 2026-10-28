@@ -73,12 +73,12 @@ async function sendWebhook(events: unknown[], secret = SECRET) {
   return fetch(`${process.env.SUPABASE_API_URL}/functions/v1/line-webhook?shop=${SHOP}`, { method: "POST", headers: { "x-line-signature": sig, "content-type": "application/json" }, body });
 }
 
-test("without LINE: a finished grooming says 未發送 with the reason (no fake success)", async ({ page }) => {
+test("without LINE: a finished grooming says 未傳 LINE with the reason (no fake success)", async ({ page }) => {
   await login(page, "amy@calm.petos.test");
   await page.goto(`/app/appointments/${await freshInService(-2000)}`);
   await page.getByTestId("open-finish-review").click();
   await page.getByTestId("commit-finish").click();
-  await expect(page.getByTestId("notification-status")).toContainText("未發送");
+  await expect(page.getByTestId("notification-status")).toContainText("未傳 LINE");
   await expect(page.getByTestId("notification-status")).toContainText("店家尚未連接 LINE 官方帳號");
   expect(calls).toHaveLength(0);
 });
