@@ -167,7 +167,7 @@ export interface NotificationJob {
   id: string;
   appointmentId: string;
   kind: "ready_pickup" | "booking_received" | "booking_confirmed";
-  channel: "line_mock";
+  channel: "line" | "line_mock";
   status: NotificationStatus;
   attempts: number;
   lastError: string | null;
@@ -248,6 +248,8 @@ export interface PetView extends Pet {
 }
 
 export interface Session {
+  /** auth user id (demo: same as staffId) */
+  userId: string;
   staffId: string;
   displayName: string;
   role: Role;

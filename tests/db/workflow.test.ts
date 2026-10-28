@@ -144,6 +144,8 @@ describe("M3-01 service workflow", () => {
 
   it("E14: notification failure does not touch the appointment; retries are bounded", async () => {
     const statusBefore = (await pool.query("select status, version from appointments where id = $1", [APT.naicha])).rows[0];
+    // treat this job as a real LINE job (the dev shop's jobs are line_mock, which the real worker never claims)
+    await pool.query("update notification_jobs set channel = 'line' where appointment_id = $1 and kind = 'ready_pickup'", [APT.naicha]);
     const jobs = await pool.query("select * from app.claim_notification_jobs(50)");
     for (const j of jobs.rows) await pool.query("select app.complete_notification_job($1, false, 'LINE 503', null, false)", [j.id]);
     const job = (await pool.query("select status, attempts, last_error from notification_jobs where appointment_id = $1 and kind = 'ready_pickup'", [APT.naicha])).rows[0];

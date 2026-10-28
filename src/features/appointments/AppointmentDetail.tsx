@@ -231,7 +231,8 @@ function NotificationList({ a }: { a: Detail }) {
         <li key={n.id} className="flex flex-wrap items-center gap-x-2">
           <span>{KIND[n.kind]}</span>
           <NotificationText status={n.status} />
-          <span className="text-xs text-muted">LINE 模擬</span>
+          {n.channel === "line_mock" ? <span className="text-xs text-muted">LINE 模擬（Demo）</span> : null}
+          {n.lastError && n.status !== "sent" ? <span className="w-full text-xs text-muted">{n.lastError}</span> : null}
           {n.status === "failed" ? (
             <Button size="sm" variant="quiet" className="-my-1 h-8" loading={retry.isPending} onClick={() => retry.mutate(n.id)}>
               <RotateCw className="size-3.5" aria-hidden />

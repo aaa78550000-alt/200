@@ -5,6 +5,8 @@ import { sitePath } from "@/lib/paths";
 import { AlertTriangle, Check, Copy, ExternalLink, Phone, Plus } from "lucide-react";
 import { useAdapter } from "@/lib/db/context";
 import type { AffectedAppointment, ServiceInput } from "@/lib/db/adapter";
+import { useQuery } from "@tanstack/react-query";
+import type { Role } from "@/lib/domain/types";
 import { usePetosMutation, useSchedule, useServices, useSession, useShop, useStaff } from "@/lib/hooks/queries";
 import { can, ROLE_LABEL } from "@/lib/domain/status";
 import { formatNtd } from "@/lib/domain/money";
@@ -86,6 +88,8 @@ export function MorePage() {
       <HoursSection manage={manage} />
       <StaffSection manage={manage} />
       <TimeOffSection manage={manage} />
+      <StaffAccountsSection manage={manage} />
+      <LineSection owner={session?.role === "owner"} />
     </div>
   );
 }
@@ -428,6 +432,129 @@ function TimeOffSection({ manage }: { manage: boolean }) {
           <p className="mt-3 text-sm text-success">沒有預約受到這次休假影響。</p>
         )
       ) : null}
+    </section>
+  );
+}
+
+function StaffAccountsSection({ manage }: { manage: boolean }) {
+  const adapter = useAdapter();
+  const toast = useToast();
+  const { data: session } = useSession();
+  const accounts = useQuery({ queryKey: ["petos", "staff-accounts"], queryFn: () => adapter.listStaffAccounts(), enabled: manage });
+  const [adding, setAdding] = useState(false);
+  const [f, setF] = useState({ displayName: "", email: "", password: "", role: "groomer" as Exclude<Role, "owner">, isGroomer: true });
+  const [resetFor, setResetFor] = useState<string | null>(null);
+  const [newPw, setNewPw] = useState("");
+  const create = usePetosMutation(() => adapter.createStaffAccount(f));
+  const toggle = usePetosMutation((v: { userId: string; active: boolean }) => adapter.setStaffActive(v.userId, v.active));
+  const reset = usePetosMutation(() => adapter.resetStaffPassword(resetFor!, newPw));
+  if (!manage) return null;
+  const roles: Exclude<Role, "owner">[] = session?.role === "owner" ? ["manager", "receptionist", "groomer"] : ["receptionist", "groomer"];
+  return (
+    <section className="mt-10" aria-labelledby="accounts">
+      <SectionTitle id="accounts" aside={<Button size="sm" variant="quiet" onClick={() => setAdding(true)} data-testid="new-staff"><Plus className="size-3.5" aria-hidden />新增員工帳號</Button>}>
+        員工帳號
+      </SectionTitle>
+      {accounts.isLoading ? (
+        <ListSkeleton rows={2} />
+      ) : (
+        <ul className="divide-y divide-rule" data-testid="staff-accounts">
+          {accounts.data?.map((a) => (
+            <li key={a.userId} className="flex flex-wrap items-center justify-between gap-2 py-3">
+              <div className="min-w-0">
+                <p className="font-semibold">
+                  {a.displayName}
+                  <span className="ml-2 text-sm font-normal text-muted">{ROLE_LABEL[a.role]}{a.isGroomer ? "・排班美容師" : ""}</span>
+                  {!a.active ? <span className="ml-2 rounded-full bg-ink/[0.06] px-2 py-0.5 text-xs text-muted">已停用</span> : null}
+                </p>
+                <p className="truncate text-sm text-muted">{a.email ?? "—"}</p>
+              </div>
+              {a.role !== "owner" && a.userId !== session?.userId ? (
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" onClick={() => { setResetFor(a.userId); setNewPw(""); reset.reset(); }}>重設密碼</Button>
+                  <Button size="sm" variant="ghost" loading={toggle.isPending && toggle.variables?.userId === a.userId} onClick={() => toggle.mutate({ userId: a.userId, active: !a.active }, { onSuccess: () => toast(a.active ? "已停用，該帳號無法再登入此店" : "已重新啟用") })}>
+                    {a.active ? "停用" : "啟用"}
+                  </Button>
+                </div>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+      {toggle.error ? <ActionError error={toggle.error} /> : null}
+      <p className="mt-2 text-sm text-muted">員工用你設定的 Email 與初始密碼登入；請當面或私訊告知，並請他登入後更換密碼。</p>
+      <Sheet open={adding} onOpenChange={setAdding} title="新增員工帳號"
+        footer={<Button variant="primary" size="lg" block loading={create.isPending} data-testid="create-staff" onClick={() => create.mutate(undefined, { onSuccess: () => { toast(`已建立 ${f.displayName} 的帳號`); setAdding(false); setF({ ...f, displayName: "", email: "", password: "" }); } })}>建立帳號</Button>}>
+        <div className="space-y-4">
+          <Field label="稱呼" htmlFor="st-name"><Input id="st-name" value={f.displayName} onChange={(e) => setF({ ...f, displayName: e.target.value })} /></Field>
+          <Field label="登入 Email" htmlFor="st-email"><Input id="st-email" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></Field>
+          <Field label="初始密碼" htmlFor="st-pw" hint="至少 8 個字元"><Input id="st-pw" type="text" autoComplete="off" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /></Field>
+          <Field label="角色">
+            <Segmented<Exclude<Role, "owner">> label="角色" value={f.role} onChange={(role) => setF({ ...f, role, isGroomer: role === "groomer" ? true : f.isGroomer })} options={roles.map((r) => ({ value: r, label: ROLE_LABEL[r] }))} />
+          </Field>
+          <label className="flex min-h-11 items-center gap-3 text-[15px]">
+            <input type="checkbox" className="size-5 accent-[var(--primary)]" checked={f.isGroomer} onChange={(e) => setF({ ...f, isGroomer: e.target.checked })} />
+            排進美容師行事曆
+          </label>
+          {create.error ? <ActionError error={create.error} /> : null}
+        </div>
+      </Sheet>
+      <Sheet open={!!resetFor} onOpenChange={(o) => !o && setResetFor(null)} title="重設密碼" side="center"
+        footer={<Button variant="primary" size="lg" block loading={reset.isPending} disabled={newPw.length < 8} onClick={() => reset.mutate(undefined, { onSuccess: () => { toast("密碼已重設"); setResetFor(null); } })}>重設</Button>}>
+        <Field label="新密碼" htmlFor="st-newpw" hint="至少 8 個字元"><Input id="st-newpw" type="text" autoComplete="off" value={newPw} onChange={(e) => setNewPw(e.target.value)} /></Field>
+        {reset.error ? <div className="mt-3"><ActionError error={reset.error} /></div> : null}
+      </Sheet>
+    </section>
+  );
+}
+
+function LineSection({ owner }: { owner: boolean }) {
+  const adapter = useAdapter();
+  const toast = useToast();
+  const status = useQuery({ queryKey: ["petos", "line-status"], queryFn: () => adapter.getLineStatus() });
+  const [editing, setEditing] = useState(false);
+  const [f, setF] = useState({ secret: "", token: "", basicId: "" });
+  const save = usePetosMutation(() => adapter.setLineChannel(f));
+  const clear = usePetosMutation(() => adapter.clearLineChannel());
+  const st = status.data;
+  return (
+    <section className="mt-10" aria-labelledby="line">
+      <SectionTitle id="line">LINE 官方帳號通知</SectionTitle>
+      {status.isLoading ? <ListSkeleton rows={1} /> : st?.configured ? (
+        <div className="mt-3 space-y-1 text-[15px]" data-testid="line-status">
+          <p><span className="font-semibold text-success-ink">已連接</span> {st.basicId} · 已綁定飼主 <span className="num">{st.linkedCustomers}</span> 位</p>
+          <p className="text-sm text-muted">完工待接回、預約確認、熟客驗證碼會用這個帳號推播給已綁定的飼主。</p>
+        </div>
+      ) : (
+        <p className="mt-3 text-[15px] text-muted" data-testid="line-status">尚未連接。連接後才會傳 LINE 通知；未連接時通知狀態會顯示「未發送」，不會假裝已送出。</p>
+      )}
+      {st?.webhookUrl ? (
+        <div className="mt-3 text-sm">
+          <p className="text-muted">Webhook URL（貼到 LINE Developers → Messaging API → Webhook URL，並開啟 Use webhook）：</p>
+          <p className="num mt-1 break-all rounded-[var(--radius-control)] bg-ink/[0.04] px-3 py-2">{st.webhookUrl}</p>
+        </div>
+      ) : null}
+      {owner ? (
+        editing ? (
+          <form className="mt-4 space-y-3 border border-border p-4" data-testid="line-form" onSubmit={(e) => { e.preventDefault(); save.mutate(undefined, { onSuccess: () => { toast("LINE 官方帳號已連接"); setEditing(false); setF({ secret: "", token: "", basicId: "" }); } }); }}>
+            <p className="text-sm text-muted">在 LINE Developers 的 Messaging API channel 取得以下資料。金鑰只存在伺服器，之後不會再顯示。</p>
+            <Field label="LINE ID（例如 @123abcde）" htmlFor="ln-id"><Input id="ln-id" value={f.basicId} onChange={(e) => setF({ ...f, basicId: e.target.value })} /></Field>
+            <Field label="Channel secret" htmlFor="ln-secret"><Input id="ln-secret" autoComplete="off" value={f.secret} onChange={(e) => setF({ ...f, secret: e.target.value })} /></Field>
+            <Field label="Channel access token（long-lived）" htmlFor="ln-token"><Textarea id="ln-token" autoComplete="off" value={f.token} onChange={(e) => setF({ ...f, token: e.target.value })} className="min-h-20" /></Field>
+            {save.error ? <ActionError error={save.error} /> : null}
+            <div className="flex gap-2">
+              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>取消</Button>
+              <Button type="submit" variant="primary" className="flex-1" loading={save.isPending}>儲存並連接</Button>
+            </div>
+          </form>
+        ) : (
+          <div className="mt-3 flex gap-2">
+            <Button size="sm" onClick={() => setEditing(true)} data-testid="edit-line">{st?.configured ? "更換金鑰" : "連接 LINE 官方帳號"}</Button>
+            {st?.configured ? <Button size="sm" variant="ghost" loading={clear.isPending} onClick={() => clear.mutate(undefined, { onSuccess: () => toast("已中斷 LINE 連接") })}>中斷連接</Button> : null}
+          </div>
+        )
+      ) : null}
+      {clear.error ? <ActionError error={clear.error} /> : null}
     </section>
   );
 }

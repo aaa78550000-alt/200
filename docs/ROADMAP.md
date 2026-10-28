@@ -5,6 +5,7 @@
 | ID | 里程碑 | 完成定義 | 狀態 |
 |---|---|---|---|
 | M1-00 | 店家註冊開通（F01/E01） | 註冊→建立店家→預設營業時間→開店清單 | DONE 2026-10-28 |
+| M1-03 | 員工帳號 | 店主建立／停用員工、重設密碼，權限由 SQL 檢查 | DONE 2026-10-28（staff-admin Edge Function） |
 | M0-01 | 啟動專案、安裝/檢查 design skill、建立工具鏈 | dev server 啟動、CLAUDE.md 與 skills 可讀、測試可執行 | DONE 2026-10-28 |
 | M0-02 | 視覺探索與 Design System | 有 3 個不同構圖概念、選定 brief、tokens、可重用元件 | DONE 2026-10-28（`DESIGN_EXPLORATION.md`） |
 | M0-03 | 五個高擬真 UI / demo adapter | 5 頁可點擊、資料一致、Mobile/Desktop 適配 | DONE 2026-10-28 |
@@ -16,7 +17,7 @@
 | M3-01 | 報到→美容→待接回→交接 | 一筆預約完整服務流程，事件不可重複 | DONE 2026-10-28 |
 | M3-02 | 基本付款與歷史 | 真實 DB、部分付款／退款、更正留痕 | DONE 2026-10-28（不可變 ledger、冪等鍵） |
 | M4-01 | 電子契約 | 模板版本、PDF、簽署保存與法規風險清單 | TODO |
-| M4-02 | LINE OA 通知 | Mock E2E, 實際 credentials 待授權、失敗重試 | PARTIAL：outbox＋退避重試＋mock worker 完成；真實 LINE 憑證 BLOCKED |
+| M4-02 | LINE OA 通知 | Mock E2E, 實際 credentials 待授權、失敗重試 | DONE（程式）2026-10-28：真實 LINE Messaging API（push/reply、簽章驗證、綁定碼、熟客 LINE 驗證碼、pg_net 即時＋pg_cron 重試）；各店在設定頁填自己的金鑰 |
 | M5-01 | 包套、儲值、回訪、報表 | ledger、測試、報表口徑 | TODO |
 | M6-01 | 住宿、庫存、採購、多門市、訂閱 | 等核心流程穩定再逐步建立 | TODO |
 

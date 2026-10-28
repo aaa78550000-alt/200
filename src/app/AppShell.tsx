@@ -34,6 +34,19 @@ export function AppShell() {
   const { data: session, error: sessionError } = useSession();
   if (sessionError instanceof DomainError && sessionError.code === "UNAUTHENTICATED") return <Navigate to="/login" replace />;
   if (sessionError instanceof DomainError && sessionError.code === "NO_SHOP") return <Navigate to="/onboarding" replace />;
+  if (sessionError instanceof DomainError && sessionError.code === "FORBIDDEN")
+    return (
+      <div className="grid min-h-dvh place-items-center px-4 text-center" role="alert">
+        <div>
+          <p className="text-lg font-bold">{sessionError.message}</p>
+          {adapter.signOut ? (
+            <button type="button" className="mt-3 min-h-11 text-primary hover:underline" onClick={() => adapter.signOut!().then(() => window.location.assign(sitePath("/login")))}>
+              換一個帳號登入
+            </button>
+          ) : null}
+        </div>
+      </div>
+    );
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[224px_minmax(0,1fr)]">
       <aside className="sticky top-0 hidden h-dvh flex-col border-r border-rule bg-canvas px-3 py-5 lg:flex">

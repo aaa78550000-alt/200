@@ -96,14 +96,16 @@ export function createSupabaseAdapter(): DataAdapter {
     if (ctx) return ctx;
     const { data } = await sb.auth.getUser();
     if (!data.user) throw new DomainError("UNAUTHENTICATED", "請先登入");
-    const memberships = await must(sb.from("shop_memberships").select("shop_id, role, status").eq("user_id", data.user.id).eq("status", "active"));
+    const all = (await must(sb.from("shop_memberships").select("shop_id, role, status").eq("user_id", data.user.id))) as Row[];
+    const memberships = all.filter((m) => m.status === "active");
+    if (!memberships.length && all.length) throw new DomainError("FORBIDDEN", "這個帳號已被店家停用，請聯絡店主或店長");
     if (!memberships.length) throw new DomainError("NO_SHOP", "這個帳號還沒有建立或加入任何店家");
     const m = memberships[0] as Row;
     const shopRow = (await must(sb.from("shops").select("*").eq("id", m.shop_id).single())) as Row;
     const profile = (await must(sb.from("user_profiles").select("display_name").eq("user_id", data.user.id).maybeSingle())) as Row | null;
     const staff = (await must(sb.from("staff_profiles").select("id").eq("shop_id", m.shop_id).eq("user_id", data.user.id).maybeSingle())) as Row | null;
     ctx = {
-      session: { staffId: staff?.id ?? data.user.id, displayName: profile?.display_name ?? data.user.email ?? "", role: m.role as Role, shopId: m.shop_id },
+      session: { userId: data.user.id, staffId: staff?.id ?? data.user.id, displayName: profile?.display_name ?? data.user.email ?? "", role: m.role as Role, shopId: m.shop_id },
       shop: { id: shopRow.id, slug: shopRow.slug, name: shopRow.name, timezone: shopRow.timezone, phone: shopRow.phone ?? "", address: shopRow.address ?? "", bookingNotice: shopRow.booking_notice },
     };
     devMode = !!shopRow.dev_mode;
@@ -141,12 +143,12 @@ export function createSupabaseAdapter(): DataAdapter {
     birthdate: r.birthdate, birthdateEstimated: r.birthdate_estimated, neutered: r.neutered, coatColor: r.coat_color, microchipMasked: null,
     photoUrl: r.photo_key ? urls.get(r.photo_key) ?? null : null, groomingPreferences: r.grooming_preferences, productPreferences: r.product_preferences, estimatedMinutes: r.estimated_minutes,
   });
-  const mapCustomer = (r: Row): Customer => ({ id: r.id, shopId: r.shop_id, name: r.name, phone: r.phone.replace(/^(\d{4})(\d{3})(\d{3})$/, "$1-$2-$3"), lineLinked: r.line_linked });
+  const mapCustomer = (r: Row): Customer => ({ id: r.id, shopId: r.shop_id, name: r.name, phone: r.phone.replace(/^(\d{4})(\d{3})(\d{3})$/, "$1-$2-$3"), lineLinked: !!r.line_user_id });
   const mapNote = (r: Row): PetNote => ({ id: r.id, petId: r.pet_id, category: r.category, source: r.source, body: r.body, severity: r.severity, updatedBy: r.updated_by_name, updatedAt: r.updated_at });
   const mapWeight = (r: Row): WeightRecord => ({ id: r.id, petId: r.pet_id, weightKg: Number(r.weight_kg), measuredAt: r.measured_at, recordedBy: r.recorded_by_name });
   const mapItem = (r: Row): AppointmentItem => ({ id: r.id, appointmentId: r.appointment_id, serviceId: r.service_id, name: r.name, priceSnapshot: r.price_snapshot, durationSnapshot: r.duration_snapshot, approval: r.approval });
   const mapPayment = (r: Row): PaymentTransaction => ({ id: r.id, appointmentId: r.appointment_id, type: r.type, method: r.method, amount: r.amount_ntd, idempotencyKey: r.idempotency_key, note: r.note, createdAt: r.created_at, createdBy: r.created_by_name });
-  const mapJob = (r: Row): NotificationJob => ({ id: r.id, appointmentId: r.appointment_id, kind: r.kind, channel: "line_mock", status: r.status, attempts: r.attempts, lastError: r.last_error, updatedAt: r.updated_at });
+  const mapJob = (r: Row): NotificationJob => ({ id: r.id, appointmentId: r.appointment_id, kind: r.kind, channel: r.channel, status: r.status, attempts: r.attempts, lastError: r.last_error, updatedAt: r.updated_at });
   const mapApt = (r: Row): Appointment => ({
     id: r.id, shopId: r.shop_id, petId: r.pet_id, customerId: r.customer_id, staffId: r.staff_id, startsAt: r.starts_at, endsAt: r.ends_at, bufferMinutes: r.buffer_minutes,
     status: r.status, version: r.version, source: r.source, contractStatus: r.contract_status, pickupExpectedAt: r.pickup_expected_at, customerNote: r.customer_note,
@@ -238,6 +240,25 @@ export function createSupabaseAdapter(): DataAdapter {
   }
 
   const rpc = async <T>(fn: string, args: Record<string, unknown>): Promise<T> => must(app().rpc(fn, args)) as Promise<T>;
+
+  /** Staff accounts are created by the staff-admin Edge Function (needs the Auth admin API). */
+  async function staffAdmin(body: Record<string, unknown>) {
+    const { session: s } = await session();
+    if (typeof navigator !== "undefined" && navigator.onLine === false) throw new DomainError("OFFLINE", OFFLINE_MSG);
+    const { data } = await sb.auth.getSession();
+    let res: Response;
+    try {
+      res = await fetch(`${url}/functions/v1/staff-admin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: key!, Authorization: `Bearer ${data.session?.access_token ?? ""}` },
+        body: JSON.stringify({ shopId: s.shopId, ...body }),
+      });
+    } catch {
+      throw new DomainError("OFFLINE", OFFLINE_MSG);
+    }
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) throw new DomainError(((CODES as string[]).includes(out.code) ? out.code : "VALIDATION") as DomainErrorCode, out.message ?? `操作失敗（${res.status}）`);
+  }
 
   const adapter: DataAdapter = {
     mode: "supabase",
@@ -358,6 +379,44 @@ export function createSupabaseAdapter(): DataAdapter {
       if (up.error) throw new DomainError("FORBIDDEN", `上傳失敗：${up.error.message}`);
       await must(sb.from("pet_media").insert({ shop_id: s.shopId, pet_id: petId, category, storage_key: path, caption: caption?.trim() || null }));
     },
+    async getLineStatus() {
+      const { session: s } = await session();
+      const r = await rpc<Row>("line_status", { p_shop: s.shopId });
+      return { configured: r.configured, basicId: r.basicId, linkedCustomers: r.linkedCustomers, webhookUrl: `${url}/functions/v1/line-webhook?shop=${s.shopId}` };
+    },
+    async setLineChannel(input) {
+      const { session: s } = await session();
+      await rpc("set_line_channel", { p_shop: s.shopId, p_secret: input.secret, p_token: input.token, p_basic_id: input.basicId });
+    },
+    async clearLineChannel() {
+      const { session: s } = await session();
+      await rpc("clear_line_channel", { p_shop: s.shopId });
+    },
+    createLinkCode: (customerId) => rpc("create_link_code", { p_customer: customerId }),
+    getPublicLinkCode: (slug, appointmentId, clientRequestId) => rpc("public_link_code", { p_slug: slug, p_appointment: appointmentId, p_client_request_id: clientRequestId }),
+
+    async listStaffAccounts() {
+      const { session: s } = await session();
+      const [members, profiles, staff] = await Promise.all([
+        must(sb.from("shop_memberships").select("user_id, role, status").eq("shop_id", s.shopId)),
+        must(sb.from("user_profiles").select("user_id, display_name, email")),
+        must(sb.from("staff_profiles").select("user_id, is_groomer").eq("shop_id", s.shopId)),
+      ]);
+      return (members as Row[]).map((m) => {
+        const p = (profiles as Row[]).find((x) => x.user_id === m.user_id);
+        return { userId: m.user_id, displayName: p?.display_name ?? "（未命名）", email: p?.email ?? null, role: m.role, active: m.status === "active", isGroomer: !!(staff as Row[]).find((x) => x.user_id === m.user_id)?.is_groomer };
+      });
+    },
+    async createStaffAccount(input) {
+      await staffAdmin({ action: "create", ...input });
+    },
+    async setStaffActive(userId, active) {
+      await staffAdmin({ action: "setActive", userId, active });
+    },
+    async resetStaffPassword(userId, password) {
+      await staffAdmin({ action: "resetPassword", userId, password });
+    },
+
     async findCustomerByPhone(phone) {
       const { session: s } = await session();
       const digits = phone.replace(/\D/g, "");
@@ -441,6 +500,8 @@ export function createSupabaseAdapter(): DataAdapter {
         services: (r.services as Row[]).map((v): Service => ({ id: v.id, shopId: r.shop.id, name: v.name, description: v.description, basePrice: v.basePrice, priceIsFrom: v.priceIsFrom, durationMinutes: v.durationMinutes, bufferMinutes: v.bufferMinutes, isAddon: false, species: v.species, onlineBookable: true })),
         groomers: r.groomers,
         closedWeekdays: r.closedWeekdays,
+        returningVerification: r.returningVerification,
+        lineBasicId: r.lineBasicId ?? null,
       };
     },
     async getPublicSlots(slug, date, serviceId, staffId) {

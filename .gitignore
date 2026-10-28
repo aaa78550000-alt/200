@@ -11,3 +11,4 @@ supabase/.branches
 artifacts/visual/scratch/
 dist-embedded
 dist-pages
+supabase/functions/.env

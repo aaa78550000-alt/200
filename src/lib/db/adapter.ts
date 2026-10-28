@@ -1,4 +1,5 @@
 import type {
+  Role,
   Appointment,
   AppointmentEvent,
   AppointmentView,
@@ -124,6 +125,26 @@ export interface PublicBookingInfo {
   groomers: { id: string; displayName: string }[];
   /** 0 = Sunday … 6 = Saturday */
   closedWeekdays: number[];
+  /** How returning customers prove their phone: LINE message, demo code, or not offered. */
+  returningVerification: "line" | "demo" | "none";
+  lineBasicId: string | null;
+}
+
+export interface LineStatus {
+  configured: boolean;
+  basicId: string | null;
+  linkedCustomers: number;
+  /** URL to paste into LINE Developers → Messaging API → Webhook URL (null in demo) */
+  webhookUrl: string | null;
+}
+
+export interface StaffAccount {
+  userId: string;
+  displayName: string;
+  email: string | null;
+  role: Role;
+  active: boolean;
+  isGroomer: boolean;
 }
 
 /**
@@ -164,6 +185,17 @@ export interface DataAdapter {
   addTimeOff(input: { staffId: string; startsAt: string; endsAt: string; reason: string }): Promise<AffectedAppointment[]>;
   deleteTimeOff(id: string): Promise<void>;
 
+  getLineStatus(): Promise<LineStatus>;
+  setLineChannel(input: { secret: string; token: string; basicId: string }): Promise<void>;
+  clearLineChannel(): Promise<void>;
+  createLinkCode(customerId: string): Promise<{ code: string; basicId: string; expiresAt: string }>;
+  getPublicLinkCode(slug: string, appointmentId: string, clientRequestId: string): Promise<{ available: boolean; linked?: boolean; basicId?: string; code?: string }>;
+
+  listStaffAccounts(): Promise<StaffAccount[]>;
+  createStaffAccount(input: { email: string; password: string; displayName: string; role: Exclude<Role, "owner">; isGroomer: boolean }): Promise<void>;
+  setStaffActive(userId: string, active: boolean): Promise<void>;
+  resetStaffPassword(userId: string, password: string): Promise<void>;
+
   signUp?(email: string, password: string): Promise<void>;
   createShop?(input: { name: string; slug: string; displayName: string; isGroomer: boolean }): Promise<void>;
 
@@ -183,7 +215,7 @@ export interface DataAdapter {
 
   getPublicBooking(slug: string): Promise<PublicBookingInfo>;
   getPublicSlots(slug: string, date: string, serviceId: string, staffId: string | null): Promise<Slot[]>;
-  requestOtp(slug: string, phone: string): Promise<{ sent: boolean; demoCode?: string }>;
+  requestOtp(slug: string, phone: string): Promise<{ sent: boolean; channel?: "line" | "demo"; demoCode?: string }>;
   verifyOtp(slug: string, phone: string, code: string): Promise<{ token: string; customerName: string; pets: { id: string; name: string; breed: string | null; photoUrl: string | null }[] }>;
   submitBookingRequest(input: BookingRequestInput): Promise<{ appointmentId: string; status: "pending"; duplicate: boolean }>;
 }

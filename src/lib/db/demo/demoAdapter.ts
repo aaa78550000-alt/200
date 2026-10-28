@@ -86,7 +86,7 @@ export function createDemoAdapter(store = new DemoStore()): DataAdapter & { stor
   const session = (): Session => {
     const staffId = ROLE_STAFF[store.settings.role];
     const s = db().staff.find((x) => x.id === staffId)!;
-    return { staffId, displayName: s.displayName, role: store.settings.role, shopId: db().shop.id };
+    return { userId: staffId, staffId, displayName: s.displayName, role: store.settings.role, shopId: db().shop.id };
   };
 
   async function read<T>(fn: () => T): Promise<T> {
@@ -320,6 +320,34 @@ export function createDemoAdapter(store = new DemoStore()): DataAdapter & { stor
         const updatedBy = note.source === "owner_reported" ? `${session().displayName}（代記飼主說明）` : session().displayName;
         db().notes.push({ id: id("n"), petId, ...note, body: note.body.trim(), updatedBy, updatedAt: tick() });
       }),
+
+    // DEMO: no real LINE account can be connected here — say so instead of pretending.
+    getLineStatus: () => read(() => ({ configured: false, basicId: null, linkedCustomers: 0, webhookUrl: null })),
+    setLineChannel: async () => {
+      throw new DomainError("VALIDATION", "Demo 版不會連接真的 LINE 官方帳號；請在正式版（Supabase）設定。");
+    },
+    clearLineChannel: async () => {},
+    createLinkCode: async () => {
+      throw new DomainError("VALIDATION", "請先在「服務與設定」連接店家的 LINE 官方帳號（Demo 版不提供）");
+    },
+    getPublicLinkCode: async () => ({ available: false }),
+
+    listStaffAccounts: () =>
+      read(() =>
+        db().staff.map((s) => ({ userId: s.id, displayName: s.displayName, email: `${s.id.replace("stf-", "")}@demo.petos`, role: s.role, active: true, isGroomer: s.isGroomer })),
+      ),
+    createStaffAccount: (input) =>
+      write("settings.manage", () => {
+        if (!input.displayName.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(input.email)) throw new DomainError("VALIDATION", "請填寫稱呼與正確的 Email");
+        if (input.password.length < 8) throw new DomainError("VALIDATION", "初始密碼至少 8 個字元");
+        db().staff.push({ id: id("stf"), shopId: db().shop.id, displayName: input.displayName.trim(), role: input.role, isGroomer: input.isGroomer, serviceIds: [], color: "slate" });
+      }),
+    setStaffActive: async () => {
+      throw new DomainError("VALIDATION", "Demo 版不提供停用帳號");
+    },
+    resetStaffPassword: async () => {
+      throw new DomainError("VALIDATION", "Demo 版沒有真的帳號密碼");
+    },
 
     findCustomerByPhone: (phone) =>
       read(() => db().customers.find((c) => c.phone.replace(/-/g, "") === phone.replace(/\D/g, "")) ?? null),
@@ -570,6 +598,8 @@ export function createDemoAdapter(store = new DemoStore()): DataAdapter & { stor
           services: db().services.filter((s) => s.onlineBookable && !s.isAddon),
           groomers: db().staff.filter((s) => s.isGroomer).map((s) => ({ id: s.id, displayName: s.displayName })),
           closedWeekdays: db().hours.filter((h) => !h.opens).map((h) => h.weekday),
+          returningVerification: "demo" as const,
+          lineBasicId: null,
         };
       }),
 
@@ -584,7 +614,7 @@ export function createDemoAdapter(store = new DemoStore()): DataAdapter & { stor
     requestOtp: (slug, phone) =>
       read(() => {
         if (slug !== db().shop.slug || !/^09\d{2}-?\d{3}-?\d{3}$/.test(phone)) throw new DomainError("VALIDATION", "請輸入正確的手機號碼（09 開頭 10 碼）");
-        return { sent: true, demoCode: DEMO_OTP };
+        return { sent: true, channel: "demo" as const, demoCode: DEMO_OTP };
       }),
 
     verifyOtp: (slug, phone, code) =>

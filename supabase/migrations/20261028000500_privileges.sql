@@ -30,6 +30,15 @@ begin
       app.create_customer_pet(uuid, uuid, text, text, text, app.species, text, app.sex, date, numeric) to authenticated;
   end if;
 
+  if to_regprocedure('app.set_line_channel(uuid, text, text, text)') is not null then
+    grant execute on function app.set_line_channel(uuid, text, text, text), app.clear_line_channel(uuid), app.line_status(uuid),
+      app.create_link_code(uuid) to authenticated;
+    grant execute on function app.public_link_code(text, uuid, text) to anon, authenticated;
+    grant execute on function app.line_channel(uuid), app.line_link_customer(uuid, text, text), app.notification_message(uuid),
+      app.invoke_notify_worker(), app.assert_can_manage(uuid, uuid, app.member_role), app.add_staff_member(uuid, uuid, uuid, text, text, app.member_role, boolean),
+      app.set_member_active(uuid, uuid, uuid, boolean), app.assert_can_reset(uuid, uuid, uuid) to service_role;
+  end if;
+
   -- Public booking (customers are anonymous; staff testing their own page are authenticated)
   grant execute on function
     app.public_booking_info(text),

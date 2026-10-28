@@ -100,6 +100,6 @@ describe("function privileges", () => {
     const r = await pool.query(`
       select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
       where n.nspname = 'app' and p.prokind = 'f' and has_function_privilege('anon', p.oid, 'execute') order by 1`);
-    expect(r.rows.map((x) => x.proname)).toEqual(["public_booking_info", "public_slots", "request_otp", "submit_booking_request", "verify_otp"]);
+    expect(r.rows.map((x) => x.proname)).toEqual(["public_booking_info", "public_link_code", "public_slots", "request_otp", "submit_booking_request", "verify_otp"]);
   });
 });

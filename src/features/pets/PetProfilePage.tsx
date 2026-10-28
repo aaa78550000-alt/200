@@ -339,15 +339,35 @@ function Photos({ p }: { p: PetDetail }) {
 }
 
 function Member({ p }: { p: PetDetail }) {
+  const adapter = useAdapter();
+  const { data: session } = useSession();
+  const link = usePetosMutation(() => adapter.createLinkCode(p.customer.id));
+  const canLink = session ? can(session.role, "appointment.create") : false;
   return (
-    <dl className="grid grid-cols-[96px_minmax(0,1fr)] gap-y-2 text-[15px]">
-      <dt className="text-muted">飼主</dt>
-      <dd>{p.customer.name}</dd>
-      <dt className="text-muted">LINE</dt>
-      <dd>{p.customer.lineLinked ? "已綁定店家官方帳號" : <span className="text-muted">未綁定</span>}</dd>
-      <dt className="text-muted">包套・儲值</dt>
-      <dd className="text-muted">尚未啟用（規劃於 P1 里程碑）</dd>
-    </dl>
+    <div className="space-y-4">
+      <dl className="grid grid-cols-[96px_minmax(0,1fr)] gap-y-2 text-[15px]">
+        <dt className="text-muted">飼主</dt>
+        <dd>{p.customer.name}</dd>
+        <dt className="text-muted">LINE</dt>
+        <dd data-testid="line-link-state">{p.customer.lineLinked ? <span className="text-success-ink">已綁定，通知會傳到飼主的 LINE</span> : <span className="text-muted">未綁定</span>}</dd>
+        <dt className="text-muted">包套・儲值</dt>
+        <dd className="text-muted">尚未啟用（規劃於 P1 里程碑）</dd>
+      </dl>
+      {!p.customer.lineLinked && canLink ? (
+        <div className="border-t border-rule pt-3">
+          {link.data ? (
+            <div className="bg-primary-tint/50 px-4 py-3" data-testid="link-code">
+              <p className="text-[15px]">請飼主在 LINE 加入 <span className="font-semibold">{link.data.basicId}</span> 好友，並傳送綁定碼：</p>
+              <p className="num mt-1 text-3xl font-bold tracking-[0.2em]">{link.data.code}</p>
+              <p className="mt-1 text-sm text-muted">7 天內有效，使用一次後失效。</p>
+            </div>
+          ) : (
+            <Button onClick={() => link.mutate()} loading={link.isPending} data-testid="make-link-code">產生 LINE 綁定碼</Button>
+          )}
+          {link.error ? <div className="mt-2"><ActionError error={link.error} /></div> : null}
+        </div>
+      ) : null}
+    </div>
   );
 }
 

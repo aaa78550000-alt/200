@@ -41,6 +41,14 @@ M0～M3 完成：五個核心畫面＋毛孩/設定/登入/開店，皆可在 **
 - 內容：完整 demo 版（虛構資料，存在使用者自己的瀏覽器）；更新方式：`npm run build:embedded` 後重新發佈 `dist-embedded/PetOS.html`
 - PR：https://github.com/aaa78550000-alt/200/pull/1（`main` 建在第一個 M0 commit 上，PR 顯示其後所有工作）
 
+## 真實功能（不再有模擬）— 2026-10-28 更新
+- **LINE 通知**：`supabase/functions/notify-worker`（推播，X-Line-Retry-Key 防重送）、`line-webhook`（簽章驗證、綁定碼）。店主在「服務與設定 → LINE 官方帳號通知」填 Channel secret／access token／LINE ID，並把顯示的 Webhook URL 貼到 LINE Developers。
+- **熟客驗證**：驗證碼經 LINE 傳送；店家未連 LINE 時，飼主端不顯示「我來過」，不給假驗證碼。
+- **員工帳號**：`supabase/functions/staff-admin`；店主／店長在設定頁建立、停用、重設密碼。
+- **通知狀態誠實**：未連 LINE 或飼主未綁定時顯示「未發送」＋原因。
+- 唯一保留的模擬：本機 seed 店家（`dev_mode=true`）與 Demo 版，正式店家一律 `dev_mode=false`。
+- 測試：`tests/db/line.test.ts`（7）、`tests/e2e-supabase/zz-line-and-staff.spec.ts`（8，LINE API 以本機記錄伺服器替代，其餘全部真實：Edge Functions、pg_net、Vault、Auth admin）。
+
 ## 上線（GitHub Pages ＋ Supabase）
 `.github/workflows/deploy.yml`，**只在手動按 Run workflow 時執行**：
 - `mode=demo`：虛構資料版，公開網址 `https://aaa78550000-alt.github.io/200/`
@@ -48,6 +56,7 @@ M0～M3 完成：五個核心畫面＋毛孩/設定/登入/開店，皆可在 **
 - 需要：repo Secrets `SUPABASE_ACCESS_TOKEN`、`SUPABASE_DB_PASSWORD`；Settings → Pages → Source = GitHub Actions
 - 正式環境 `dev_mode=false`：OTP 不回傳驗證碼（SMS 未接，熟客手機驗證暫不可用，新客申請可用）；通知會停在「排隊中」直到部署 LINE worker
 - 本環境網路政策擋 `supabase.com`／`api.supabase.com`，所以由 GitHub Actions 代為執行
+- **尚待補進 workflow（被安全檢查擋下，需使用者授權）**：`supabase functions deploy`、把 worker URL 與 service key 寫入 Vault（`petos_worker_url`／`petos_worker_key`）、Auth `mailer_autoconfirm=true`。未補之前：LINE 推播與員工帳號在正式環境不會運作，且新註冊需收確認信。
 
 ## 可操作路徑
 - Demo：`npm run dev` → `/app/today`（DEMO 工具：角色、離線、LINE 失敗、時段被搶、重設）
