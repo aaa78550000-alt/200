@@ -36,6 +36,11 @@ M0～M3 完成：五個核心畫面＋毛孩/設定/登入/開店，皆可在 **
 | E17 斷網不假成功 | ✔ | e2e、e2e-supabase（含 TanStack 暫停重送修正） |
 | E18 不能靠電話讀他人資料 | ✔ | db booking、e2e |
 
+## 線上可直接打開的版本
+- **https://claude.ai/artifact/NFaEvbkohxa9pftK5PYXfa**（私人連結，需在頁面 Share 選單分享給店員才看得到）
+- 內容：完整 demo 版（虛構資料，存在使用者自己的瀏覽器）；更新方式：`npm run build:embedded` 後重新發佈 `dist-embedded/PetOS.html`
+- PR：https://github.com/aaa78550000-alt/200/pull/1（`main` 建在第一個 M0 commit 上，PR 顯示其後所有工作）
+
 ## 可操作路徑
 - Demo：`npm run dev` → `/app/today`（DEMO 工具：角色、離線、LINE 失敗、時段被搶、重設）
 - 真實後端：`npx supabase start` ＋ `.env.local`（README）→ `/login`（本機帳號見 README）或 `/signup` 開新店
@@ -49,10 +54,10 @@ M0～M3 完成：五個核心畫面＋毛孩/設定/登入/開店，皆可在 **
 | Supabase CLI | 2.122.0；本機 stack 以 `SUPABASE_INTERNAL_IMAGE_REGISTRY=docker.io` 啟動，缺的映像（postgrest v16.5、storage-api v1.84.19、kong 2.8.1、realtime v2.147.1）從 `mirror.gcr.io` 拉取後 retag |
 | DB 測試容器 | `supabase/postgres:17.11.0.006` 於 54329 |
 | 外部圖庫 | 被網路政策擋 → Canva 生成虛構毛孩圖（`src/assets/pets/CREDITS.md`） |
-| GitHub | repo 原本為空，只有本分支 → **無 base branch，無法開 PR**（見下方 BLOCKED） |
+| GitHub | 已建立 `main`（指向第一個 commit）並開 draft PR #1 |
 
 ## BLOCKED（需要你的授權或外部資源）
-1. **開 Pull Request**：遠端只有 `claude/petos-bootstrap-yh4f6v` 一個分支，沒有 main 可作為 base。若要 PR 流程，請在 GitHub 建立預設分支（例如以第一個 commit 建 `main`）。
+1. ~~開 Pull Request~~：已處理（PR #1）。repo 預設分支仍是 `claude/petos-bootstrap-yh4f6v`，可在 GitHub Settings 改成 `main`。
 2. **雲端 Supabase 專案**：需要 Project URL / anon key（及在 Dashboard 設定 `app` schema 曝露給 API）。目前全部在本機驗證。
 3. **SMS 驗證碼**：正式 OTP 需要簡訊供應商與憑證；目前 `dev_mode` 店家回傳固定碼 123456，正式店家不回傳（`app.request_otp`）。
 4. **LINE OA**：各店 channel token/secret；目前 outbox＋mock worker。正式 worker 需 Edge Function 部署與 service role 金鑰。
