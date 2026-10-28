@@ -53,7 +53,10 @@ jobs:
         id: project
         run: |
           # Management API directly (stable JSON): organizations[].id is the org slug, projects[].id is the project ref
+          set -o pipefail
           api() { curl -fsS -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "https://api.supabase.com/v1/$1"; }
+          echo "organizations: $(api organizations | jq -c '[.[] | {id, name}]')"
+          echo "projects: $(api projects | jq -c '[.[] | {id, name, status}]')"
           REF=$(api projects | jq -r '[.[] | select(.name=="petos")][0].id // empty')
           if [ -z "$REF" ]; then
             ORG=$(api organizations | jq -r '.[0].id // empty')
