@@ -66,16 +66,17 @@ export type Capability =
   | "payment.record"
   | "payment.refund"
   | "handover.unpaid_authorize"
-  | "finance.view";
+  | "finance.view"
+  | "settings.manage";
 
 const CAPS: Record<Role, Capability[]> = {
   owner: [
     "appointment.confirm", "appointment.create", "appointment.cancel", "appointment.reschedule",
-    "service.progress", "payment.record", "payment.refund", "handover.unpaid_authorize", "finance.view",
+    "service.progress", "payment.record", "payment.refund", "handover.unpaid_authorize", "finance.view", "settings.manage",
   ],
   manager: [
     "appointment.confirm", "appointment.create", "appointment.cancel", "appointment.reschedule",
-    "service.progress", "payment.record", "payment.refund", "handover.unpaid_authorize", "finance.view",
+    "service.progress", "payment.record", "payment.refund", "handover.unpaid_authorize", "finance.view", "settings.manage",
   ],
   receptionist: [
     "appointment.confirm", "appointment.create", "appointment.cancel", "appointment.reschedule",

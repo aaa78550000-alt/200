@@ -1,6 +1,9 @@
 import { useDeferredValue, useState } from "react";
-import { Link } from "react-router-dom";
-import { AlertTriangle, Search } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { AlertTriangle, Plus, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sheet } from "@/components/ui/sheet";
+import { NewPetForm } from "./NewPetForm";
 import { usePets } from "@/lib/hooks/queries";
 import { PetAvatar } from "@/components/pet/PetAvatar";
 import { WeightLine } from "@/components/pet/WeightLine";
@@ -10,6 +13,8 @@ import { EmptyState, ErrorState, ListSkeleton } from "@/components/ui/states";
 /** Search by pet, breed, owner or phone. Same-name pets are told apart by photo + breed + owner (E03). */
 export function PetListPage() {
   const [q, setQ] = useState("");
+  const [creating, setCreating] = useState(false);
+  const navigate = useNavigate();
   const query = useDeferredValue(q);
   const pets = usePets(query);
   const nameCount = new Map<string, number>();
@@ -18,7 +23,13 @@ export function PetListPage() {
   return (
     <div className="mx-auto max-w-[880px] px-4 pb-10 lg:px-8">
       <header className="pt-4 lg:pt-7">
-        <h1 className="text-2xl font-bold leading-8">毛孩</h1>
+        <div className="flex items-end justify-between gap-3">
+          <h1 className="text-2xl font-bold leading-8">毛孩</h1>
+          <Button variant="primary" onClick={() => setCreating(true)} data-testid="new-pet">
+            <Plus className="size-4" aria-hidden />
+            新增毛孩
+          </Button>
+        </div>
         <div className="relative mt-3">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
           <Input type="search" aria-label="搜尋毛孩" placeholder="名字、品種、飼主或電話" value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" data-testid="pet-search" />
@@ -65,6 +76,9 @@ export function PetListPage() {
           </ul>
         )}
       </div>
+      <Sheet open={creating} onOpenChange={setCreating} title="新增飼主與毛孩" description="首次只需要最少資料，其他之後補">
+        {creating ? <NewPetForm onCreated={(id) => { setCreating(false); navigate(`/app/pets/${id}`); }} onCancel={() => setCreating(false)} /> : null}
+      </Sheet>
     </div>
   );
 }

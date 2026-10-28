@@ -27,13 +27,15 @@ import type {
 
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-const CODES: DomainErrorCode[] = ["CONFLICT", "VERSION_MISMATCH", "INVALID_TRANSITION", "FORBIDDEN", "OFFLINE", "SLOT_TAKEN", "OTP_INVALID", "NOT_FOUND", "VALIDATION", "UNAUTHENTICATED", "RATE_LIMITED"];
+const CODES: DomainErrorCode[] = ["CONFLICT", "VERSION_MISMATCH", "INVALID_TRANSITION", "FORBIDDEN", "OFFLINE", "SLOT_TAKEN", "OTP_INVALID", "NOT_FOUND", "VALIDATION", "UNAUTHENTICATED", "RATE_LIMITED", "NO_SHOP"];
 
 function toDomainError(e: PostgrestError | Error | null | undefined): DomainError {
   if (!e) return new DomainError("VALIDATION", "未知錯誤");
   const pe = e as PostgrestError;
   if (pe.hint && (CODES as string[]).includes(pe.hint)) return new DomainError(pe.hint as DomainErrorCode, pe.message, pe.details ? pe.details.split("\n").filter(Boolean) : undefined);
   if (pe.code === "42501" || pe.code === "PGRST301") return new DomainError("FORBIDDEN", "沒有權限執行這個操作");
+  // .single() after a write that RLS filtered out → nothing was changed
+  if (pe.code === "PGRST116") return new DomainError("FORBIDDEN", "沒有權限，或資料已不存在；沒有任何變更。");
   if (/Failed to fetch|NetworkError|fetch failed|Load failed/i.test(e.message)) return new DomainError("OFFLINE", OFFLINE_MSG);
   return new DomainError("VALIDATION", e.message);
 }
@@ -94,7 +96,7 @@ export function createSupabaseAdapter(): DataAdapter {
     const { data } = await sb.auth.getUser();
     if (!data.user) throw new DomainError("UNAUTHENTICATED", "請先登入");
     const memberships = await must(sb.from("shop_memberships").select("shop_id, role, status").eq("user_id", data.user.id).eq("status", "active"));
-    if (!memberships.length) throw new DomainError("FORBIDDEN", "這個帳號還沒有加入任何店家");
+    if (!memberships.length) throw new DomainError("NO_SHOP", "這個帳號還沒有建立或加入任何店家");
     const m = memberships[0] as Row;
     const shopRow = (await must(sb.from("shops").select("*").eq("id", m.shop_id).single())) as Row;
     const profile = (await must(sb.from("user_profiles").select("display_name").eq("user_id", data.user.id).maybeSingle())) as Row | null;
@@ -354,6 +356,51 @@ export function createSupabaseAdapter(): DataAdapter {
       const up = await sb.storage.from("pet-media").upload(path, file, { contentType: file.type, upsert: false });
       if (up.error) throw new DomainError("FORBIDDEN", `上傳失敗：${up.error.message}`);
       await must(sb.from("pet_media").insert({ shop_id: s.shopId, pet_id: petId, category, storage_key: path, caption: caption?.trim() || null }));
+    },
+    async findCustomerByPhone(phone) {
+      const { session: s } = await session();
+      const digits = phone.replace(/\D/g, "");
+      if (!/^09\d{8}$/.test(digits)) return null;
+      const r = (await must(sb.from("customers").select("*").eq("shop_id", s.shopId).eq("phone", digits).maybeSingle())) as Row | null;
+      return r ? mapCustomer(r) : null;
+    },
+    async createCustomerPet(input) {
+      const { session: s } = await session();
+      return rpc("create_customer_pet", {
+        p_shop: s.shopId, p_customer_id: input.customerId ?? null, p_customer_name: input.customerName ?? null, p_phone: input.phone ?? null,
+        p_pet_name: input.petName, p_species: input.species, p_breed: input.breed ?? null, p_sex: input.sex ?? "unknown", p_birthdate: input.birthdate || null, p_weight: input.weightKg ?? null,
+      });
+    },
+    async saveService(input) {
+      const { session: s } = await session();
+      const row = { shop_id: s.shopId, name: input.name.trim(), description: input.description, base_price: input.basePrice, price_is_from: input.priceIsFrom, duration_minutes: input.durationMinutes, buffer_minutes: input.bufferMinutes, is_addon: input.isAddon, species: input.species, online_bookable: input.onlineBookable };
+      if (input.id) await must(sb.from("services").update(row).eq("id", input.id).select("id").single());
+      else await must(sb.from("services").insert(row).select("id").single());
+    },
+    // Services referenced by historical items are archived, never deleted (snapshots keep history intact).
+    archiveService: async (id) => void (await must(sb.from("services").update({ active: false }).eq("id", id).select("id").single())),
+    async setOperatingHours(hours) {
+      const { session: s } = await session();
+      await must(sb.from("operating_hours").upsert(hours.map((h) => ({ shop_id: s.shopId, weekday: h.weekday, opens: h.opens, closes: h.closes }))).select("weekday"));
+    },
+    async setStaffServices(staffId, serviceIds) {
+      const { session: s } = await session();
+      await must(sb.from("staff_services").delete().eq("staff_id", staffId).select("staff_id"));
+      if (serviceIds.length) await must(sb.from("staff_services").insert(serviceIds.map((sid) => ({ shop_id: s.shopId, staff_id: staffId, service_id: sid }))).select("staff_id"));
+    },
+    async addTimeOff(input) {
+      const rows = await rpc<Row[]>("add_time_off", { p_staff: input.staffId, p_starts: input.startsAt, p_ends: input.endsAt, p_reason: input.reason });
+      return rows.map((r) => ({ id: r.id, startsAt: r.startsAt, status: r.status, petName: r.petName, customerName: r.customerName, customerPhone: String(r.customerPhone).replace(/^(\d{4})(\d{3})(\d{3})$/, "$1-$2-$3") }));
+    },
+    deleteTimeOff: async (id) => void (await must(sb.from("time_off").delete().eq("id", id).select("id").single())),
+    async signUp(email, password) {
+      const { error } = await sb.auth.signUp({ email, password });
+      if (error) throw new DomainError("VALIDATION", error.message.includes("registered") ? "這個 Email 已註冊，請直接登入" : `註冊失敗：${error.message}`);
+      ctx = null;
+    },
+    async createShop(input) {
+      await rpc("create_shop", { p_name: input.name, p_slug: input.slug, p_display_name: input.displayName, p_is_groomer: input.isGroomer });
+      ctx = null;
     },
     async createAppointment(input) {
       const { session: s } = await session();

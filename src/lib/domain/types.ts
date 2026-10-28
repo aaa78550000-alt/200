@@ -144,7 +144,8 @@ export interface AppointmentEvent {
     | "notification"
     | "cancelled"
     | "addon_requested"
-    | "addon_decided";
+    | "addon_decided"
+    | "warning";
   actorName: string;
   at: string;
   summary: string;

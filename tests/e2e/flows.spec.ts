@@ -147,10 +147,10 @@ test.describe("scheduling", () => {
     await expect(form.getByText("Coco", { exact: false }).first()).toBeVisible();
     await form.getByText("基礎洗澡").click();
     await form.getByRole("radiogroup", { name: "美容師" }).getByText("Amy").click();
-    await form.getByLabel("開始時間").fill("16:00");
+    await form.getByLabel("開始時間").selectOption("16:00");
     await expect(page.getByTestId("conflict-hint")).toContainText("重疊");
     await form.getByLabel("日期").fill("2026-10-29");
-    await form.getByLabel("開始時間").fill("10:00");
+    await form.getByLabel("開始時間").selectOption("10:00");
     await expect(page.getByTestId("conflict-hint")).toHaveCount(0);
     await page.getByTestId("create-appointment").click();
     await expect(detail(page)).toHaveAttribute("data-status", "confirmed");
@@ -186,7 +186,7 @@ test.describe("scheduling", () => {
     await page.getByRole("button", { name: "改期" }).click();
     const form = page.getByTestId("reschedule-form");
     await form.getByLabel("日期").fill("2026-10-29");
-    await form.getByLabel("開始時間").fill("16:00");
+    await form.getByLabel("開始時間").selectOption("16:00");
     await form.getByRole("button", { name: "確認改期" }).click();
     await expect(page).toHaveURL(/apt-toast/);
     await expect(page.getByText(/改期：2026-10-28 16:30 → 2026-10-29 16:00/)).toBeVisible();

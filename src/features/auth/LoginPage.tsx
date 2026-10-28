@@ -54,6 +54,9 @@ export function LoginPage() {
         <Button type="submit" variant="primary" size="lg" block loading={busy}>
           登入
         </Button>
+        <p className="text-center text-sm text-muted">
+          第一次使用？<a className="text-primary hover:underline" href="/signup">建立店家帳號</a>
+        </p>
         {isLocal ? (
           <div className="border-t border-rule pt-3 text-sm text-muted">
             <p className="mb-1 font-medium text-ink">本機開發帳號（密碼 petos-dev-only，僅限本機 seed）</p>

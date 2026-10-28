@@ -56,3 +56,24 @@ export function Segmented<T extends string>({ value, onChange, options, name, la
     </div>
   );
 }
+
+/** 24-hour time picker (native <input type=time> follows the browser's 12h locale; the spec requires 24h). */
+export const TimeSelect = forwardRef<HTMLSelectElement, { value: string; onChange: (v: string) => void; step?: 15 | 30; from?: string; to?: string; id?: string; "aria-label"?: string; className?: string }>(
+  ({ value, onChange, step = 30, from = "07:00", to = "22:00", className, ...p }, ref) => {
+    const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+    const opts: string[] = [];
+    for (let m = toMin(from); m <= toMin(to); m += step) opts.push(`${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`);
+    if (value && !opts.includes(value)) opts.unshift(value);
+    return (
+      <select ref={ref} value={value} onChange={(e) => onChange(e.target.value)} className={cn(inputCls, "num h-11 w-[104px] pr-2", className)} {...p}>
+        {!value ? <option value="">--:--</option> : null}
+        {opts.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
+    );
+  },
+);
+TimeSelect.displayName = "TimeSelect";

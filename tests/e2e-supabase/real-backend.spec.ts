@@ -165,3 +165,48 @@ test("E17: network failure never shows a fake success", async ({ page, context }
   await page.reload();
   await expect(detail(page)).toHaveAttribute("data-status", "confirmed");
 });
+
+test("E01: sign up → create shop → onboarding checklist → add first service and pet", async ({ page }) => {
+  const stamp = Date.now().toString(36);
+  await page.goto("/signup");
+  await page.getByLabel("Email").fill(`owner-${stamp}@petos.test`);
+  await page.getByLabel("密碼").fill("petos-dev-only-123");
+  await page.getByRole("button", { name: "下一步" }).click();
+  await page.getByLabel("店名").fill("E2E 新店");
+  await page.getByLabel("飼主預約網址").fill(`e2e-${stamp}`);
+  await page.getByLabel("你的稱呼").fill("新店主");
+  await page.getByRole("button", { name: "建立店家" }).click();
+  await expect(page.getByTestId("onboarding")).toBeVisible();
+  await page.screenshot({ path: shot("onboarding"), fullPage: true });
+
+  await page.getByTestId("new-service").click();
+  await page.getByLabel("名稱").fill("小型犬洗澡");
+  await page.getByLabel("價格（NT$）").fill("600");
+  await page.getByTestId("save-service").click();
+  await expect(page.locator("#services").locator("..").locator("li", { hasText: "小型犬洗澡" })).toContainText("NT$600");
+
+  await page.goto("/app/pets");
+  await page.getByTestId("new-pet").click();
+  const form = page.getByTestId("new-pet-form");
+  await form.getByLabel("飼主手機").fill("0912-000-101"); // same phone as a customer of ANOTHER shop
+  await form.getByRole("button", { name: "查詢", exact: true }).click();
+  await expect(form.getByLabel("飼主稱呼")).toBeVisible(); // not found here: shops never share customers
+  await form.getByLabel("飼主稱呼").fill("第一位客人");
+  await form.getByLabel("毛孩名字").fill("首隻");
+  await page.getByTestId("create-pet").click();
+  await expect(page.getByTestId("pet-name")).toHaveText("首隻");
+});
+
+test("E06 on real backend: leave lists affected bookings", async ({ page }) => {
+  await login(page, "owner@calm.petos.test");
+  await page.goto("/app/more");
+  const form = page.getByTestId("time-off-form");
+  await form.getByRole("radiogroup", { name: "休假美容師" }).getByText("Amy").click();
+  const today = await page.evaluate(() => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei" }).format(new Date()));
+  await form.getByLabel("日期").fill(today);
+  await form.getByText("部分時段").click();
+  await form.getByLabel("開始").selectOption("16:00");
+  await form.getByLabel("結束").selectOption("19:00");
+  await page.getByTestId("add-time-off").click();
+  await expect(page.getByTestId("affected-appointments")).toContainText("吐司");
+});

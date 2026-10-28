@@ -31,6 +31,7 @@ export function AppShell() {
   const { data: shop } = useShop();
   const { data: session, error: sessionError } = useSession();
   if (sessionError instanceof DomainError && sessionError.code === "UNAUTHENTICATED") return <Navigate to="/login" replace />;
+  if (sessionError instanceof DomainError && sessionError.code === "NO_SHOP") return <Navigate to="/onboarding" replace />;
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[224px_minmax(0,1fr)]">
       <aside className="sticky top-0 hidden h-dvh flex-col border-r border-rule bg-canvas px-3 py-5 lg:flex">

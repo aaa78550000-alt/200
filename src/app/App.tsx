@@ -14,6 +14,7 @@ import { AppointmentPage } from "@/features/appointments/AppointmentPage";
 import { BookingPage } from "@/features/booking/BookingPage";
 import { MorePage } from "@/features/more/MorePage";
 import { LoginPage } from "@/features/auth/LoginPage";
+import { OnboardingPage } from "@/features/auth/OnboardingPage";
 
 // networkMode "always": TanStack Query would otherwise PAUSE mutations while offline and replay them silently
 // when the connection returns (e.g. a payment recorded minutes later). Offline attempts must fail visibly (E17).
@@ -56,6 +57,8 @@ export function App() {
               </Route>
               <Route path="/book/:shopSlug" element={<BookingPage />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<OnboardingPage mode="signup" />} />
+              <Route path="/onboarding" element={<OnboardingPage mode="shop" />} />
               <Route path="*" element={<Navigate to="/app/today" replace />} />
             </Routes>
           </BrowserRouter>

@@ -28,7 +28,8 @@ export type DomainErrorCode =
   | "NOT_FOUND"
   | "VALIDATION"
   | "UNAUTHENTICATED"
-  | "RATE_LIMITED";
+  | "RATE_LIMITED"
+  | "NO_SHOP";
 
 export class DomainError extends Error {
   constructor(
@@ -83,6 +84,40 @@ export interface BookingRequestInput {
   newCustomer?: { name: string; phone: string; petName: string; species: "dog" | "cat"; breed?: string; weightKg?: number | null };
 }
 
+export interface NewCustomerPetInput {
+  customerId?: string;
+  customerName?: string;
+  phone?: string;
+  petName: string;
+  species: "dog" | "cat";
+  breed?: string;
+  sex?: "male" | "female" | "unknown";
+  birthdate?: string | null;
+  weightKg?: number | null;
+}
+
+export interface AffectedAppointment {
+  id: string;
+  startsAt: string;
+  status: string;
+  petName: string;
+  customerName: string;
+  customerPhone: string;
+}
+
+export interface ServiceInput {
+  id?: string;
+  name: string;
+  description: string;
+  basePrice: number;
+  priceIsFrom: boolean;
+  durationMinutes: number;
+  bufferMinutes: number;
+  isAddon: boolean;
+  species: ("dog" | "cat")[];
+  onlineBookable: boolean;
+}
+
 export interface PublicBookingInfo {
   shop: Shop;
   services: Service[];
@@ -118,6 +153,19 @@ export interface DataAdapter {
   addWeight(petId: string, weightKg: number): Promise<void>;
   uploadPetMedia(petId: string, file: File, category: "before" | "after" | "care", caption?: string): Promise<void>;
   addNote(petId: string, note: { category: PetNote["category"]; source: PetNote["source"]; body: string; severity: PetNote["severity"] }): Promise<void>;
+
+  createCustomerPet(input: NewCustomerPetInput): Promise<{ petId: string; customerId: string }>;
+  findCustomerByPhone(phone: string): Promise<Customer | null>;
+
+  saveService(input: ServiceInput): Promise<void>;
+  archiveService(id: string): Promise<void>;
+  setOperatingHours(hours: { weekday: number; opens: string | null; closes: string | null }[]): Promise<void>;
+  setStaffServices(staffId: string, serviceIds: string[]): Promise<void>;
+  addTimeOff(input: { staffId: string; startsAt: string; endsAt: string; reason: string }): Promise<AffectedAppointment[]>;
+  deleteTimeOff(id: string): Promise<void>;
+
+  signUp?(email: string, password: string): Promise<void>;
+  createShop?(input: { name: string; slug: string; displayName: string; isGroomer: boolean }): Promise<void>;
 
   createAppointment(input: CreateAppointmentInput): Promise<Appointment>;
   confirmAppointment(id: string, version: number, staffId?: string): Promise<Appointment>;

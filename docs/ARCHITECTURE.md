@@ -31,3 +31,24 @@ Node 22、npm、Supabase CLI（本地 Supabase 需 Docker），生成 `.env.exam
 
 ## 流程
 設計→資料合同→業務服務層→可驗證 API→UI→E2E→RLS→Screenshot QA→文件→下一個切片。不要先生成 17 個空頁。
+
+## 實作現況（2026-10-28）
+
+```
+src/
+  app/            App（路由、QueryClient）、AppShell（側欄/底部導覽、登入導向）
+  lib/domain/     types、status（狀態機與角色能力）、availability（排程規則）、money、time（Asia/Taipei）
+  lib/db/         adapter.ts（DataAdapter 介面＋DomainError）、demo/（fixtures＋demoAdapter）、supabase/（supabaseAdapter）
+  components/     ui/（Button、Sheet、Field、TimeSelect、Tabs、Toast、狀態元件）、pet/、appointment/
+  features/       today、pets、calendar、appointments、booking、more（服務與設定）、auth（登入、註冊開店）、demo（DEMO 工具列）
+supabase/
+  migrations/     0100 schema → 0200 RLS → 0300 業務 RPC → 0400 公開預約 → 0500 函式權限 → 0600 Storage → 0700 開店/設定
+  seed.sql        兩間虛構店（隔離測試），時間相對「今天」
+tests/
+  unit/           Vitest（domain、demo adapter）
+  db/             Vitest＋pg，以 PostgREST 相同方式（role＋JWT claims）扮演使用者
+  e2e/            Playwright × demo（390/1440、375/768/1024）
+  e2e-supabase/   Playwright × 本機 Supabase（Auth＋PostgREST＋Storage）
+```
+
+錯誤合約：DB 以 `app.fail(code, message, detail)` 丟出，`hint` 為機器碼（CONFLICT、VERSION_MISMATCH、FORBIDDEN…），前端轉成 `DomainError` 並原樣顯示中文訊息，不自行假設成功。

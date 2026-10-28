@@ -41,3 +41,12 @@
 - 行事曆尚無拖拉改期（目前以詳情內「改期」表單＋後端驗證完成）；週檢視區塊在 7 欄時只顯示名字與服務。
 - 未做獨立評審者盲評與分數追蹤；建議 M1 後用子代理評一次。
 - 鍵盤：主要流程可用 Tab/Enter/Esc 操作（Radix Dialog 焦點鎖定），尚未做完整螢幕閱讀器實測（NOT RUN）。
+
+## Round 3（M1–M2 新畫面：服務與設定、新增毛孩、登入/開店；自查）
+| # | 問題 | 修正 |
+|---|---|---|
+| 1 | 服務與設定頁整頁崩潰：`Button asChild` 傳兩個子節點給 Radix Slot（只在新頁面觸發） | asChild 時只傳單一子元素；把 `/app/more`、`/app/pets` 加入每頁 console-error 檢查 |
+| 2 | 手機上原生時間欄位依瀏覽器語系顯示「09:00 A…」被截斷，且不是 24 小時制 | 新增 `TimeSelect`（24 小時、15/30 分），套用於營業時間、休假、新增預約、改期 |
+| 3 | 真實後端下 Today 詳情面板高度少算（假設有 DEMO 列） | DEMO 列存在時才設定 `--topbar` |
+
+截圖：`artifacts/screenshots/state-new-pet-*`、`state-service-edit-*`、`state-time-off-affected-*`、`supabase-*.png`。

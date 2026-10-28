@@ -9,6 +9,8 @@ const PAGES = [
   { name: "calendar", path: "/app/calendar", ready: "預約行事曆" },
   { name: "appointment-detail", path: "/app/appointments/apt-coco-today", ready: "照護注意事項" },
   { name: "booking", path: "/book/calm-studio", ready: "想預約什麼服務？" },
+  { name: "pet-list", path: "/app/pets", ready: "毛孩" },
+  { name: "settings", path: "/app/more", ready: "服務與設定" },
 ] as const;
 
 for (const p of PAGES) {

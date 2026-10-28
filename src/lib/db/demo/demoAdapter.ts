@@ -3,7 +3,7 @@
 // so the prototype cannot show success the backend would reject.
 import { DomainError, type AppointmentDetail, type DataAdapter, type PetDetail } from "../adapter";
 import { createFixtures, DEMO_NOW, type DemoDb } from "./fixtures";
-import { bookableSlots, findConflicts, type ScheduleContext } from "@/lib/domain/availability";
+import { appointmentsAffectedByTimeOff, bookableSlots, findConflicts, type ScheduleContext } from "@/lib/domain/availability";
 import { can, canTransition, APPOINTMENT_LABEL, type Capability } from "@/lib/domain/status";
 import { paidAmount, paymentStatus, totalDue, formatNtd } from "@/lib/domain/money";
 import { addMinutes, dateOf, hhmm } from "@/lib/domain/time";
@@ -319,6 +319,80 @@ export function createDemoAdapter(store = new DemoStore()): DataAdapter & { stor
         if (!note.body.trim()) throw new DomainError("VALIDATION", "請填寫注意事項內容");
         const updatedBy = note.source === "owner_reported" ? `${session().displayName}（代記飼主說明）` : session().displayName;
         db().notes.push({ id: id("n"), petId, ...note, body: note.body.trim(), updatedBy, updatedAt: tick() });
+      }),
+
+    findCustomerByPhone: (phone) =>
+      read(() => db().customers.find((c) => c.phone.replace(/-/g, "") === phone.replace(/\D/g, "")) ?? null),
+
+    createCustomerPet: (input) =>
+      write("appointment.create", () => {
+        if (!input.petName.trim()) throw new DomainError("VALIDATION", "請填寫毛孩名字");
+        let customerId = input.customerId;
+        if (customerId) {
+          if (!db().customers.some((c) => c.id === customerId)) throw new DomainError("NOT_FOUND", "找不到飼主");
+        } else {
+          const digits = (input.phone ?? "").replace(/\D/g, "");
+          if (!input.customerName?.trim() || !/^09\d{8}$/.test(digits)) throw new DomainError("VALIDATION", "請填寫飼主稱呼與 09 開頭的手機號碼");
+          if (db().customers.some((c) => c.phone.replace(/-/g, "") === digits)) throw new DomainError("CONFLICT", "這支手機已有飼主資料，請改選既有飼主");
+          customerId = id("cus");
+          db().customers.push({ id: customerId, shopId: db().shop.id, name: input.customerName.trim(), phone: digits.replace(/^(\d{4})(\d{3})(\d{3})$/, "$1-$2-$3"), lineLinked: false });
+        }
+        const petId = id("pet");
+        db().pets.push({
+          id: petId, shopId: db().shop.id, primaryCustomerId: customerId, name: input.petName.trim(), species: input.species, breed: input.breed?.trim() || null, sex: input.sex ?? "unknown",
+          birthdate: input.birthdate || null, birthdateEstimated: false, neutered: null, coatColor: null, microchipMasked: null, photoUrl: null, groomingPreferences: null, productPreferences: null, estimatedMinutes: null,
+        });
+        if (input.weightKg && input.weightKg > 0) db().weights.push({ id: id("w"), petId, weightKg: input.weightKg, measuredAt: tick(), recordedBy: session().displayName });
+        return { petId, customerId };
+      }),
+
+    saveService: (input) =>
+      write("settings.manage", () => {
+        if (!input.name.trim() || input.basePrice < 0 || input.durationMinutes < 5) throw new DomainError("VALIDATION", "請確認名稱、價格與時長");
+        const existing = input.id ? db().services.find((s) => s.id === input.id) : undefined;
+        if (existing) Object.assign(existing, { ...input, id: existing.id, shopId: existing.shopId });
+        else db().services.push({ ...input, id: id("svc"), shopId: db().shop.id });
+      }),
+
+    archiveService: (sid) =>
+      write("settings.manage", () => {
+        db().services = db().services.filter((s) => s.id !== sid); // demo: historical items keep their snapshots
+      }),
+
+    setOperatingHours: (hours) =>
+      write("settings.manage", () => {
+        for (const h of hours) {
+          if (h.opens && h.closes && h.opens >= h.closes) throw new DomainError("VALIDATION", "打烊時間需晚於開店時間");
+          const row = db().hours.find((x) => x.weekday === h.weekday);
+          if (row) Object.assign(row, h);
+        }
+      }),
+
+    setStaffServices: (staffId, serviceIds) =>
+      write("settings.manage", () => {
+        const s = db().staff.find((x) => x.id === staffId);
+        if (!s) throw new DomainError("NOT_FOUND", "找不到員工");
+        s.serviceIds = [...serviceIds];
+      }),
+
+    addTimeOff: (input) =>
+      write("settings.manage", () => {
+        if (input.endsAt <= input.startsAt) throw new DomainError("VALIDATION", "結束時間需晚於開始時間");
+        const t = { id: id("off"), staffId: input.staffId, startsAt: input.startsAt, endsAt: input.endsAt, reason: input.reason.trim() || "休假" };
+        db().timeOff.push(t);
+        const staff = db().staff.find((x) => x.id === input.staffId);
+        const affected = appointmentsAffectedByTimeOff(ctx(), t).filter((a) => a.status === "pending" || a.status === "confirmed");
+        affected.forEach((a) => pushEvent(a.id, "warning", `${staff?.displayName} 新增休假（${t.reason}），此預約需聯絡飼主改期或改派`));
+        tick();
+        return affected.map((a) => {
+          const c = db().customers.find((x) => x.id === a.customerId)!;
+          return { id: a.id, startsAt: a.startsAt, status: a.status, petName: db().pets.find((p) => p.id === a.petId)!.name, customerName: c.name, customerPhone: c.phone };
+        });
+      }),
+
+    deleteTimeOff: (tid) =>
+      write("settings.manage", () => {
+        db().timeOff = db().timeOff.filter((t) => t.id !== tid);
       }),
 
     createAppointment: (input) =>
