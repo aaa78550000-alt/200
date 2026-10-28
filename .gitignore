@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+.env.local
+*.log
+.claude/skills/distinctive-ai-design/
+test-results/
+playwright-report/
+supabase/.temp
+supabase/.branches
+artifacts/visual/scratch/

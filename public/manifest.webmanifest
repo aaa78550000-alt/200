@@ -1,0 +1,1 @@
+{ "name": "PetOS", "short_name": "PetOS", "start_url": "/app/today", "display": "standalone", "background_color": "#F7F8F5", "theme_color": "#267D76", "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }] }

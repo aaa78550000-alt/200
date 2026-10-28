@@ -1,0 +1,122 @@
+@import "tailwindcss";
+@import "@fontsource-variable/noto-sans-tc";
+@import "@fontsource-variable/geist";
+
+/*
+ * PetOS design tokens — see docs/DESIGN_TOKENS.md & docs/DESIGN_EXPLORATION.md §5.
+ * Colors are CSS variables so a future theme can swap them without touching components.
+ */
+:root {
+  --canvas: #f7f8f5;
+  --surface: #ffffff;
+  --primary: #267d76;
+  --primary-hover: #206c65;
+  --primary-tint: #e7f1ef;
+  --ink: #253239;
+  --muted: #5f6c71;
+  --border: #e6eae5;
+  --rule: #e6eae5;
+  --warning: #dca85c;
+  --warning-tint: #fbf1e2;
+  --warning-ink: #8a5a14;
+  --danger: #b74848;
+  --danger-tint: #f8e9e8;
+  --success: #318264;
+  --success-tint: #e6f2ec;
+}
+
+@theme {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-tint: var(--primary-tint);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-rule: var(--rule);
+  --color-warning: var(--warning);
+  --color-warning-tint: var(--warning-tint);
+  --color-warning-ink: var(--warning-ink);
+  --color-danger: var(--danger);
+  --color-danger-tint: var(--danger-tint);
+  --color-success: var(--success);
+  --color-success-tint: var(--success-tint);
+
+  --font-sans: "Geist Variable", "Noto Sans TC Variable", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --font-num: "Geist Variable", ui-monospace, sans-serif;
+
+  --radius-card: 12px;
+  --radius-sheet: 16px;
+  --radius-control: 8px;
+
+  --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    background: var(--canvas);
+  }
+  body {
+    @apply bg-canvas text-ink font-sans antialiased;
+    font-size: 16px;
+    line-height: 1.5;
+    font-feature-settings: "tnum" 0;
+  }
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  button,
+  [role="button"] {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+}
+
+@utility num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+@utility pb-safe {
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+@utility hatch {
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 6px,
+    color-mix(in srgb, var(--muted) 14%, transparent) 6px 7px
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes sheet-up {
+  from { transform: translateY(24px); opacity: 0.6; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes drawer-in {
+  from { transform: translateX(24px); opacity: 0.6; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes row-open {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
