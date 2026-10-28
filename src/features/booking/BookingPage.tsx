@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
+import { EMBEDDED } from "@/lib/env";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Check, Clock, MapPin, Phone } from "lucide-react";
 import { useAdapter } from "@/lib/db/context";
@@ -183,6 +184,11 @@ export function BookingPage() {
       <DemoBar />
       <header className="border-b border-rule bg-surface">
         <div className="mx-auto max-w-[1040px] px-4 py-4 lg:px-8 lg:py-6">
+          {EMBEDDED ? (
+            <Link to="/app/today" className="mb-2 inline-flex min-h-9 items-center text-sm text-primary hover:underline">
+              ← 回到店家後台（這是飼主看到的畫面）
+            </Link>
+          ) : null}
           <p className="text-xl font-bold leading-7 lg:text-2xl">{shop.name}</p>
           <p className="mt-1 flex flex-wrap gap-x-4 text-sm text-muted">
             <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden />{shop.address}</span>

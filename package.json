@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:db": "vitest run --config vitest.db.config.ts",
-    "test:e2e:supabase": "playwright test -c playwright.supabase.config.ts"
+    "test:e2e:supabase": "playwright test -c playwright.supabase.config.ts",
+    "build:embedded": "node scripts/build-embedded.mjs"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",

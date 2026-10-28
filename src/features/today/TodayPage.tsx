@@ -134,10 +134,10 @@ export function TodayPage() {
             <h1 className="text-2xl font-bold leading-8">今日工作</h1>
           </div>
           <div className="flex items-center gap-1">
-            <a href="#requests" className="relative grid size-11 place-items-center rounded-[var(--radius-control)] text-ink hover:bg-ink/5 lg:hidden" aria-label={`待確認申請 ${pendingCount} 筆`}>
+            <button type="button" onClick={() => document.getElementById("requests")?.scrollIntoView({ behavior: "smooth" })} className="relative grid size-11 place-items-center rounded-[var(--radius-control)] text-ink hover:bg-ink/5 lg:hidden" aria-label={`待確認申請 ${pendingCount} 筆`}>
               <Bell className="size-5" />
               {pendingCount ? <span className="num absolute right-1.5 top-1.5 grid min-w-[18px] place-items-center rounded-full bg-warning px-1 text-[11px] font-bold leading-[18px] text-ink">{pendingCount}</span> : null}
-            </a>
+            </button>
             <Button variant="primary" onClick={() => setCreating(true)} data-testid="new-appointment">
               <Plus className="size-4" aria-hidden />
               <span>新增預約</span>

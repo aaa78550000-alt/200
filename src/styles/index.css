@@ -1,6 +1,4 @@
 @import "tailwindcss";
-@import "@fontsource-variable/noto-sans-tc";
-@import "@fontsource-variable/geist";
 
 /*
  * PetOS design tokens — see docs/DESIGN_TOKENS.md & docs/DESIGN_EXPLORATION.md §5.
@@ -50,8 +48,8 @@
   --color-success-ink: var(--success-ink);
   --color-danger-ink: var(--danger-ink);
 
-  --font-sans: "Geist Variable", "Noto Sans TC Variable", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
-  --font-num: "Geist Variable", ui-monospace, sans-serif;
+  --font-sans: "Geist Variable", "Geist", "Noto Sans TC Variable", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --font-num: "Geist Variable", "Geist", ui-monospace, sans-serif;
 
   --radius-card: 12px;
   --radius-sheet: 16px;

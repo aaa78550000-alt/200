@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, MemoryRouter, Navigate, Route, Routes } from "react-router-dom";
+import type { ReactNode } from "react";
+import { EMBEDDED } from "@/lib/env";
 import { AdapterContext } from "@/lib/db/context";
 import { createAdapter } from "@/lib/db";
 import type { DataAdapter } from "@/lib/db/adapter";
@@ -25,6 +27,10 @@ const queryClient = new QueryClient({
   },
 });
 
+function Router({ children }: { children: ReactNode }) {
+  return EMBEDDED ? <MemoryRouter initialEntries={["/app/today"]}>{children}</MemoryRouter> : <BrowserRouter>{children}</BrowserRouter>;
+}
+
 export function App() {
   const [adapter, setAdapter] = useState<DataAdapter | null>(null);
   useEffect(() => {
@@ -43,7 +49,7 @@ export function App() {
     <AdapterContext.Provider value={adapter}>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          <BrowserRouter>
+          <Router>
             <Routes>
               <Route path="/" element={<Navigate to="/app/today" replace />} />
               <Route path="/app" element={<AppShell />}>
@@ -61,7 +67,7 @@ export function App() {
               <Route path="/onboarding" element={<OnboardingPage mode="shop" />} />
               <Route path="*" element={<Navigate to="/app/today" replace />} />
             </Routes>
-          </BrowserRouter>
+          </Router>
         </ToastProvider>
       </QueryClientProvider>
     </AdapterContext.Provider>

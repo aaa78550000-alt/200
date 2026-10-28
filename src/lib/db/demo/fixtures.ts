@@ -1,6 +1,7 @@
 // Fixed, fictional demo data (docs/SCREEN_BLUEPRINTS.md「通用測試資料」).
 // Demo "today" is 2026-10-28 (Wed) 15:10 Asia/Taipei — NOT the real current time.
 import { taipeiIso } from "@/lib/domain/time";
+import { DEMO_PHOTOS } from "@/assets/pets";
 import type {
   Appointment,
   AppointmentEvent,
@@ -24,7 +25,7 @@ export const DEMO_TODAY = "2026-10-28";
 export const DEMO_NOW = taipeiIso(DEMO_TODAY, "15:10");
 const at = (d: string, t: string) => taipeiIso(d, t);
 const T = DEMO_TODAY;
-const photo = (f: string) => `/demo/pets/${f}.jpg`;
+const photo = (f: string) => DEMO_PHOTOS[f];
 
 export interface DemoDb {
   shop: Shop;

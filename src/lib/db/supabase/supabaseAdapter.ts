@@ -3,6 +3,7 @@
 import { createClient, type PostgrestError, type SupabaseClient } from "@supabase/supabase-js";
 import { DomainError, type AppointmentDetail, type DataAdapter, type DomainErrorCode, type PetDetail } from "../adapter";
 import type { ScheduleContext } from "@/lib/domain/availability";
+import { DEMO_PHOTOS } from "@/assets/pets";
 import { paymentStatus } from "@/lib/domain/money";
 import { hmFromMinutes, minutesOf } from "@/lib/domain/time";
 import type {
@@ -116,7 +117,7 @@ export function createSupabaseAdapter(): DataAdapter {
     const out = new Map<string, string>();
     const need: string[] = [];
     for (const k of new Set(keys.filter(Boolean) as string[])) {
-      if (k.startsWith("demo:")) out.set(k, `/demo/pets/${k.slice(5)}.jpg`);
+      if (k.startsWith("demo:")) out.set(k, DEMO_PHOTOS[k.slice(5)] ?? "");
       else {
         const c = signed.get(k);
         if (c && c.exp > Date.now()) out.set(k, c.url);

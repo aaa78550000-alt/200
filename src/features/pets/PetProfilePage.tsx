@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, CalendarPlus, Phone } from "lucide-react";
 import { useAdapter } from "@/lib/db/context";
 import { usePet, usePetosMutation, useSession } from "@/lib/hooks/queries";
@@ -30,6 +30,7 @@ export function PetProfilePage() {
   const navigate = useNavigate();
   const adapter = useAdapter();
   const q = usePet(id!);
+  const location = useLocation();
   const [booking, setBooking] = useState(false);
   const today = dateOf(adapter.now());
 
@@ -120,7 +121,7 @@ export function PetProfilePage() {
             <AttentionList notes={p.notes.filter((n) => n.severity === "high")} emptyText="沒有標記為重要的注意事項" />
           </section>
 
-          <Tabs defaultValue={window.location.hash === "#care" ? "care" : "overview"} className="mt-6">
+          <Tabs defaultValue={location.hash === "#care" ? "care" : "overview"} className="mt-6">
             <TabsList aria-label="毛孩檔案分頁">
               <TabsTrigger value="overview">概覽</TabsTrigger>
               <TabsTrigger value="history">美容紀錄</TabsTrigger>

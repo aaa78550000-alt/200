@@ -131,7 +131,7 @@ test("E02: photo upload goes to private storage and is shown via a signed URL", 
   await login(page, "owner@calm.petos.test");
   await page.goto("/app/pets/a8000000-0000-4000-a000-000000000001");
   await page.getByRole("tab", { name: "相簿" }).click();
-  await page.getByTestId("photo-input").setInputFiles(path.resolve("public/demo/pets/coco-poodle.jpg"));
+  await page.getByTestId("photo-input").setInputFiles(path.resolve("src/assets/pets/coco-poodle.jpg"));
   await expect(page.getByText("照片已上傳")).toBeVisible();
   const img = page.locator('img[alt="Coco 美容後照片"]').first();
   await expect(img).toBeVisible();

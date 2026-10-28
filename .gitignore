@@ -9,3 +9,4 @@ playwright-report/
 supabase/.temp
 supabase/.branches
 artifacts/visual/scratch/
+dist-embedded

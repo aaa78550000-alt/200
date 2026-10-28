@@ -30,7 +30,7 @@
 | D-02 | 2026-10-28 | UI 元件以 shadcn/ui 的作法（Radix primitives + cva + Tailwind）手寫於 `src/components/ui`，不執行 shadcn CLI | shadcn 本質是複製程式碼；手寫可精準套用 PetOS token，避免預設大圓角、陰影 |
 | D-03 | 2026-10-28 | 構圖方向：桌面採 A「Studio Ledger」、毛孩檔案與預約詳情照護區採 B「Pet Dossier」、飼主預約採 C「Quiet Concierge」，共用一套 token | 詳見 `docs/DESIGN_EXPLORATION.md` |
 | D-04 | 2026-10-28 | Demo 固定日期 2026-10-28（週三），時區 Asia/Taipei；店家 slug `calm-studio`（虛構「靜室寵物美容」） | 固定 fixture 才能截圖比對 |
-| D-05 | 2026-10-28 | 毛孩照片使用 Unsplash License 授權照片，下載後放 `public/demo/pets/`，以本地檔載入；不連外熱連結 | 截圖可重現；授權允許商業／非商業使用，來源記於 `public/demo/pets/CREDITS.md` |
+| D-05 | 2026-10-28 | Demo 毛孩照片為 Canva AI 生成之虛構圖片，放 `src/assets/pets/`，打包進程式 | 外部圖庫被網路政策擋；截圖可重現；來源記於 `src/assets/pets/CREDITS.md` |
 | D-06 | 2026-10-28 | 本地後端以 Supabase CLI（Docker）為目標；DB 測試直接連 Postgres 以 `request.jwt.claims` 模擬 Supabase 角色 | 不需雲端憑證即可證明 RLS 與並發 |
 | D-07 | 2026-10-28 | 預約不可重疊以 Postgres `EXCLUDE USING gist (staff_id, tstzrange)` 約束實作，只套用於占用狀態（confirmed/checked_in/in_service/ready_pickup） | 由 DB 最終裁決，並發下最多一筆成功 |
 | D-08 | 2026-10-28 | 狀態轉移、完工、收款透過 SECURITY DEFINER RPC（`app.*` 函式）執行，前端不可直接 UPDATE status | 後端驗證合法轉移、角色、租戶、版本 |

@@ -1,4 +1,5 @@
-import { Navigate, NavLink, Outlet } from "react-router-dom";
+import { Link, Navigate, NavLink, Outlet } from "react-router-dom";
+import { EMBEDDED } from "@/lib/env";
 import { DomainError } from "@/lib/db/adapter";
 import { useAdapter } from "@/lib/db/context";
 import { CalendarDays, ExternalLink, LayoutList, MoreHorizontal, PawPrint } from "lucide-react";
@@ -59,10 +60,17 @@ export function AppShell() {
           </NavLink>
         </nav>
         <div className="mt-auto border-t border-rule px-3 pt-4">
-          <a href={`/book/${shop?.slug ?? "calm-studio"}`} target="_blank" rel="noreferrer" className="flex min-h-11 items-center gap-2 text-sm text-primary hover:underline">
-            <ExternalLink className="size-4" aria-hidden />
-            飼主線上預約頁
-          </a>
+          {EMBEDDED ? (
+            <Link to={`/book/${shop?.slug ?? "calm-studio"}`} className="flex min-h-11 items-center gap-2 text-sm text-primary hover:underline">
+              <ExternalLink className="size-4" aria-hidden />
+              飼主線上預約頁
+            </Link>
+          ) : (
+            <a href={`/book/${shop?.slug ?? "calm-studio"}`} target="_blank" rel="noreferrer" className="flex min-h-11 items-center gap-2 text-sm text-primary hover:underline">
+              <ExternalLink className="size-4" aria-hidden />
+              飼主線上預約頁
+            </a>
+          )}
           {adapter.signOut ? (
             <button type="button" className="flex min-h-11 items-center text-sm text-muted hover:text-ink" onClick={() => adapter.signOut!().then(() => window.location.assign("/login"))}>
               登出

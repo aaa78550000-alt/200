@@ -48,7 +48,7 @@ M0～M3 完成：五個核心畫面＋毛孩/設定/登入/開店，皆可在 **
 | Playwright | 1.63.0（預裝 Chromium） |
 | Supabase CLI | 2.122.0；本機 stack 以 `SUPABASE_INTERNAL_IMAGE_REGISTRY=docker.io` 啟動，缺的映像（postgrest v16.5、storage-api v1.84.19、kong 2.8.1、realtime v2.147.1）從 `mirror.gcr.io` 拉取後 retag |
 | DB 測試容器 | `supabase/postgres:17.11.0.006` 於 54329 |
-| 外部圖庫 | 被網路政策擋 → Canva 生成虛構毛孩圖（`public/demo/pets/CREDITS.md`） |
+| 外部圖庫 | 被網路政策擋 → Canva 生成虛構毛孩圖（`src/assets/pets/CREDITS.md`） |
 | GitHub | repo 原本為空，只有本分支 → **無 base branch，無法開 PR**（見下方 BLOCKED） |
 
 ## BLOCKED（需要你的授權或外部資源）

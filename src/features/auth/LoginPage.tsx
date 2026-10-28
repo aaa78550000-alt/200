@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAdapter } from "@/lib/db/context";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,7 @@ export function LoginPage() {
           登入
         </Button>
         <p className="text-center text-sm text-muted">
-          第一次使用？<a className="text-primary hover:underline" href="/signup">建立店家帳號</a>
+          第一次使用？<Link className="text-primary hover:underline" to="/signup">建立店家帳號</Link>
         </p>
         {isLocal ? (
           <div className="border-t border-rule pt-3 text-sm text-muted">

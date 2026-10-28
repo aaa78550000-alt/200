@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { EMBEDDED } from "@/lib/env";
 import { AlertTriangle, Check, Copy, ExternalLink, Phone, Plus } from "lucide-react";
 import { useAdapter } from "@/lib/db/context";
 import type { AffectedAppointment, ServiceInput } from "@/lib/db/adapter";
@@ -34,7 +35,8 @@ export function MorePage() {
   const [params] = useSearchParams();
   const [copied, setCopied] = useState(false);
   const manage = session ? can(session.role, "settings.manage") : false;
-  const url = shop ? `${window.location.origin}/book/${shop.slug}` : "";
+  // Embedded demo has no public URL of its own; show the path the shop will get once deployed.
+  const url = shop ? (EMBEDDED ? `https://<你的網域>/book/${shop.slug}` : `${window.location.origin}/book/${shop.slug}`) : "";
   const onboarding = params.get("onboarding") === "1";
 
   return (
@@ -64,10 +66,17 @@ export function MorePage() {
             {copied ? "已複製" : "複製網址"}
           </Button>
           <Button size="sm" variant="ghost" asChild>
-            <a href={url} target="_blank" rel="noreferrer">
-              <ExternalLink className="size-3.5" aria-hidden />
-              開啟
-            </a>
+            {EMBEDDED ? (
+              <Link to={`/book/${shop?.slug ?? ""}`}>
+                <ExternalLink className="size-3.5" aria-hidden />
+                開啟
+              </Link>
+            ) : (
+              <a href={url} target="_blank" rel="noreferrer">
+                <ExternalLink className="size-3.5" aria-hidden />
+                開啟
+              </a>
+            )}
           </Button>
         </div>
       </section>
@@ -409,7 +418,7 @@ function TimeOffSection({ manage }: { manage: boolean }) {
                 <li key={a.id}>
                   <span className="num">{formatDateShort(a.startsAt)} {hhmm(a.startsAt)}</span> · {a.petName}（{a.customerName}）
                   <a className="ml-2 inline-flex items-center gap-1 text-primary hover:underline" href={`tel:${a.customerPhone}`}><Phone className="size-3.5" aria-hidden /><span className="num">{a.customerPhone}</span></a>
-                  <a className="ml-3 text-primary hover:underline" href={`/app/appointments/${a.id}`}>開啟預約</a>
+                  <Link className="ml-3 text-primary hover:underline" to={`/app/appointments/${a.id}`}>開啟預約</Link>
                 </li>
               ))}
             </ul>

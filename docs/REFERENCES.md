@@ -28,7 +28,7 @@ Claude 專案常駐指令是 CLAUDE.md；專案級 Skills 是 `.claude/skills/<n
 - elayadesign/redesign-skill：https://github.com/elayadesign/redesign-skill（可供再設計參考，不強制安裝）
 
 ## Demo 素材
-- 毛孩照片：以使用者已連接的 Canva AI 生成之**虛構**毛孩圖片（200×200），僅作 Demo，UI 內標示 DEMO，不聲稱為真實店家或真實寵物。檔案與來源見 `public/demo/pets/CREDITS.md`。原因：Unsplash／Wikimedia／Pexels 在本開發環境網路政策下無法存取（403）。
+- 毛孩照片：以使用者已連接的 Canva AI 生成之**虛構**毛孩圖片（200×200），僅作 Demo，UI 內標示 DEMO，不聲稱為真實店家或真實寵物。檔案與來源見 `src/assets/pets/CREDITS.md`。原因：Unsplash／Wikimedia／Pexels 在本開發環境網路政策下無法存取（403）。
 
 ## 法規正式查核
 - 農業部動物保護資訊網：https://animal.moa.gov.tw/
