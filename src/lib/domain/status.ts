@@ -51,7 +51,7 @@ export const NOTIFICATION_LABEL: Record<NotificationStatus, string> = {
   queued: "排隊中",
   sent: "已送出",
   failed: "送出失敗",
-  not_applicable: "未發送",
+  not_applicable: "未傳 LINE",
 };
 
 /** Progress rail shown in the appointment detail (cancel/no-show are off-rail). */
