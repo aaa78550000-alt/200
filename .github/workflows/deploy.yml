@@ -55,7 +55,11 @@ jobs:
           REF=$(npx supabase projects list -o json | jq -r '.[] | select(.name=="petos") | .id' | head -1)
           if [ -z "$REF" ]; then
             ORG=$(npx supabase orgs list -o json | jq -r '.[0].id')
-            test -n "$ORG" -a "$ORG" != null || { echo "::error::No Supabase organization found. Log in at supabase.com once to create one."; exit 1; }
+            if [ -z "$ORG" ] || [ "$ORG" = null ]; then
+              # first-time account: create a (free plan) organization to hold the project
+              npx supabase orgs create PetOS
+              ORG=$(npx supabase orgs list -o json | jq -r '.[0].id')
+            fi
             PASS="${SUPABASE_DB_PASSWORD:-$(openssl rand -hex 24)}"
             npx supabase projects create petos --org-id "$ORG" --db-password "$PASS" --region "${{ inputs.region }}"
           fi
