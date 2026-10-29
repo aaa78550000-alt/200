@@ -17,6 +17,10 @@ on:
         default: supabase
         type: choice
         options: [demo, supabase]
+      project_ref:
+        description: "Existing Supabase project ref (optional; the id in the dashboard URL)"
+        required: false
+        default: ""
       org:
         description: "Supabase organization slug for a new project (optional; found automatically when listed)"
         required: false
@@ -61,7 +65,11 @@ jobs:
           api() { curl -fsS -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "https://api.supabase.com/v1/$1"; }
           echo "organizations: $(api organizations | jq -c '[.[] | {id, name}]')"
           echo "projects: $(api projects | jq -c '[.[] | {id, name, status, organization_id, organization_slug}]')"
-          REF=$(api projects | jq -r '[.[] | select(.name=="petos")][0].id // empty')
+          REF="${{ inputs.project_ref }}"
+          if [ -n "$REF" ]; then
+            echo "project $REF: $(api "projects/$REF" | jq -r '.status')"   # fails here if this token cannot reach it
+          fi
+          [ -n "$REF" ] || REF=$(api projects | jq -r '[.[] | select(.name=="petos")][0].id // empty')
           if [ -z "$REF" ]; then
             # the project lives in an organization named PetOS (created here on first run, free plan);
             # /v1/organizations can come back empty for some tokens, so also read the CLI's table
@@ -78,7 +86,7 @@ jobs:
             npx supabase projects create petos --org-id "$ORG" --db-password "$PASS" --region "${{ inputs.region }}"
           fi
           for i in $(seq 1 90); do
-            P=$(api projects | jq -c '[.[] | select(.name=="petos")][0] // {}')
+            if [ -n "$REF" ]; then P=$(api "projects/$REF"); else P=$(api projects | jq -c '[.[] | select(.name=="petos")][0] // {}'); fi
             REF=$(echo "$P" | jq -r '.id // empty'); STATUS=$(echo "$P" | jq -r '.status // empty')
             echo "project ${REF:-?}: ${STATUS:-?}"
             [ "$STATUS" = "ACTIVE_HEALTHY" ] && break; sleep 10
